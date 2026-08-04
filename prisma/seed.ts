@@ -12,11 +12,11 @@ async function main() {
   const passwordHash = await bcrypt.hash("Admin@2026", 12)
 
   const admin = await prisma.user.upsert({
-    where: { email: "admin@odontocloud.com.br" },
+    where: { email: "admin@odontoweb.com.br" },
     update: {},
     create: {
       name: "Administrador Master",
-      email: "admin@odontocloud.com.br",
+      email: "admin@odontoweb.com.br",
       passwordHash,
       role: "ADMIN_MASTER",
       title: "Administrador",
@@ -72,13 +72,13 @@ async function main() {
   }
 
   const settings: Record<string, unknown> = {
-    appName: "OdontoCloud",
+    appName: "Odontoweb",
     logoUrl: null,
     faviconUrl: null,
     primaryColor: "#0ea5e9",
     whatsapp: "",
     instagram: "https://instagram.com",
-    contactEmail: "contato@odontocloud.com.br",
+    contactEmail: "contato@odontoweb.com.br",
     commercialInfo: "Sistema de gestão odontológica profissional",
     privacyPolicy: "Sua privacidade é importante...",
     termsOfUse: "Termos de uso...",

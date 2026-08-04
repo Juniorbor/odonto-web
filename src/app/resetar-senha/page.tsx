@@ -129,7 +129,7 @@ export default function ResetPasswordPage() {
         <div className="mb-8 flex items-center gap-3">
           <ToothLogo boxClassName="h-10 w-10 rounded-xl" />
           <p className="text-lg font-bold text-white">
-            <span className="text-gradient">Odonto</span>Cloud
+            <span className="text-gradient">Odonto</span>web
           </p>
         </div>
         <Suspense fallback={<p className="py-10 text-center text-sm text-slate-500">Carregando...</p>}>

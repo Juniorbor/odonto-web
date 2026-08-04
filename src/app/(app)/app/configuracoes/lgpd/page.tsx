@@ -26,7 +26,7 @@ export default async function ConfigLgpdPage() {
           LGPD &amp; <span className="text-gradient">Privacidade</span>
         </h1>
         <p className="mt-1 text-sm text-slate-500">
-          A Lei Geral de Proteção de Dados (LGPD) governa o tratamento de dados pessoais. A OdontoCloud trata os dados como Controladora e sua clínica como Operadora.
+          A Lei Geral de Proteção de Dados (LGPD) governa o tratamento de dados pessoais. A Odontoweb trata os dados como Controladora e sua clínica como Operadora.
         </p>
       </div>
 
@@ -80,7 +80,7 @@ export default async function ConfigLgpdPage() {
           </p>
           <p className="mt-3 text-xs text-slate-600">
             Para exercer os direitos, fale com a clínica ou com{" "}
-            <a href="mailto:contato@odontocloud.com.br" className="text-sky-400 hover:text-sky-300">contato@odontocloud.com.br</a>
+            <a href="mailto:contato@odontoweb.com.br" className="text-sky-400 hover:text-sky-300">contato@odontoweb.com.br</a>
           </p>
         </CardBody>
       </Card>

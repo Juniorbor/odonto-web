@@ -19,6 +19,7 @@ import {
   Eye,
   UserPlus,
   CalendarPlus,
+  CalendarDays,
   Smile,
   PlusCircle,
   BarChart3,
@@ -48,6 +49,12 @@ const MENU: { group: string; items: NavItem[] }[] = [
         href: "/app",
         icon: <LayoutDashboard className="h-[18px] w-[18px]" />,
         adminSafe: true,
+      },
+      {
+        label: "Agenda",
+        href: "/app/agenda",
+        icon: <CalendarDays className="h-[18px] w-[18px]" />,
+        module: "agenda",
       },
       {
         label: "Novo Paciente",
@@ -184,7 +191,7 @@ export function AppShell({
         {!collapsed && (
           <div className="min-w-0">
             <p className="truncate text-sm font-bold tracking-tight text-white">
-              <span className="text-gradient">Odonto</span>Cloud
+              <span className="text-gradient">Odonto</span>web
             </p>
             <p className="truncate text-[11px] text-slate-500">Plataforma profissional</p>
           </div>

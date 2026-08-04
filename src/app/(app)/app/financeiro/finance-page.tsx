@@ -39,6 +39,21 @@ const EXPENSE_STATUS: Record<string, { label: string; tone: "success" | "warning
   SCHEDULED: { label: "Agendada", tone: "info" },
 }
 
+const maskBRL = (raw: string): string => {
+  const hasComma = raw.includes(",")
+  let s = hasComma ? raw.replace(/\./g, "") : raw.replace(/[^\d,]/g, "")
+  const [intPart, decPart = ""] = s.split(",")
+  const int = intPart.replace(/\D/g, "").replace(/^0+(?=\d)/, "")
+  const intMasked = int.replace(/\B(?=(\d{3})+(?!\d))/g, ".")
+  const dec = decPart.replace(/\D/g, "").slice(0, 2)
+  return dec || hasComma ? `${intMasked},${dec}` : intMasked
+}
+
+const parseBRL = (v: string): number => {
+  const n = parseFloat(v.replace(/\./g, "").replace(",", "."))
+  return Number.isNaN(n) ? NaN : n
+}
+
 export function FinancePage({ categories }: { categories: FinCat[] }) {
   const router = useRouter()
   const { toast } = useToast()
@@ -89,7 +104,8 @@ export function FinancePage({ categories }: { categories: FinCat[] }) {
 
   const submit = async () => {
     const name = kind === "income" ? form.description : form.name
-    if (!name.trim() || !form.value || parseFloat(form.value) <= 0) {
+    const valueNum = parseBRL(form.value)
+    if (!name.trim() || isNaN(valueNum) || valueNum <= 0) {
       toast("Preencha a descrição e o valor.", "error")
       return
     }
@@ -97,8 +113,8 @@ export function FinancePage({ categories }: { categories: FinCat[] }) {
     try {
       const body =
         kind === "income"
-          ? { kind: "income", description: form.description, value: parseFloat(form.value), date: form.date, categoryId: form.categoryId, notes: form.notes }
-          : { kind: "expense", name: form.name, type: form.type, value: parseFloat(form.value), dueDate: form.dueDate, status: form.status, paymentMethod: form.paymentMethod, categoryId: form.categoryId, notes: form.notes }
+          ? { kind: "income", description: form.description, value: valueNum, date: form.date, categoryId: form.categoryId, notes: form.notes }
+          : { kind: "expense", name: form.name, type: form.type, value: valueNum, dueDate: form.dueDate, status: form.status, paymentMethod: form.paymentMethod, categoryId: form.categoryId, notes: form.notes }
       const res = await fetch("/api/app/finance", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -159,7 +175,7 @@ export function FinancePage({ categories }: { categories: FinCat[] }) {
   const expenseCats = categories.filter((c) => c.type !== "ENTRADA")
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6">
+    <div className="mx-auto max-w-[1600px] space-y-6 px-6 py-8">
       <div className="anim-fade-up flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-white">
@@ -288,7 +304,7 @@ export function FinancePage({ categories }: { categories: FinCat[] }) {
               />
             </Field>
             <Field label="Valor (R$)" required>
-              <Input type="number" min="0" step="0.01" value={form.value} onChange={(e) => set("value", e.target.value)} placeholder="0,00" />
+              <Input type="text" inputMode="decimal" value={form.value} onChange={(e) => set("value", maskBRL(e.target.value))} placeholder="0,00" />
             </Field>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">

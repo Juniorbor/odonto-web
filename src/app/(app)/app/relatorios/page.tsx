@@ -101,7 +101,7 @@ export default async function RelatoriosIndex() {
   ]
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6">
+    <div className="mx-auto max-w-[1600px] space-y-6 px-6 py-8">
       <div className="anim-fade-up">
         <h1 className="text-2xl font-bold text-white">
           Relatórios <span className="text-gradient">gerenciais</span>

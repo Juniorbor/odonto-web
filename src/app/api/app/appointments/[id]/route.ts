@@ -9,6 +9,7 @@ const updateSchema = z.object({
   endsAt: z.string().optional(),
   type: z.string().max(120).optional(),
   notes: z.string().max(2000).optional(),
+  professionalId: z.string().optional(),
   status: z.enum(["SCHEDULED", "CONFIRMED", "IN_PROGRESS", "COMPLETED", "CANCELLED", "NO_SHOW"]).optional(),
   patientId: z.string().optional(),
 })
@@ -46,6 +47,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       if (!d.endsAt) data.endsAt = new Date(s.getTime() + 30 * 60 * 1000)
     }
     if (d.endsAt) data.endsAt = new Date(d.endsAt)
+    if (d.professionalId !== undefined) {
+      if (d.professionalId) {
+        const professional = await prisma.professional.findFirst({
+          where: { id: d.professionalId, clinicId: ctx.clinicId },
+        })
+        if (!professional) return NextResponse.json({ error: "Profissional não encontrado." }, { status: 404 })
+      }
+      data.professionalId = d.professionalId ?? null
+    }
     if (d.type !== undefined) data.type = d.type
     if (d.notes !== undefined) data.notes = d.notes
     if (d.status) {

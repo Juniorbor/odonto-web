@@ -58,7 +58,7 @@ export default function LoginPage() {
             <ToothLogo boxClassName="h-11 w-11 rounded-2xl" />
             <div>
               <p className="text-lg font-bold text-white">
-                <span className="text-gradient">Odonto</span>Cloud
+                <span className="text-gradient">Odonto</span>web
               </p>
               <p className="text-[11px] text-slate-500">Plataforma odontológica profissional</p>
             </div>
@@ -88,7 +88,7 @@ export default function LoginPage() {
           </div>
 
           <p className="relative text-[11px] text-slate-600">
-            © {new Date().getFullYear()} OdontoCloud — Tecnologia + Odontologia + Segurança
+            © {new Date().getFullYear()} Odontoweb — Tecnologia + Odontologia + Segurança
           </p>
         </div>
 
@@ -98,7 +98,7 @@ export default function LoginPage() {
             <div className="flex items-center gap-3">
               <ToothLogo boxClassName="h-10 w-10 rounded-xl" />
               <p className="text-lg font-bold text-white">
-                <span className="text-gradient">Odonto</span>Cloud
+                <span className="text-gradient">Odonto</span>web
               </p>
             </div>
           </div>

@@ -111,7 +111,7 @@ export async function POST(req: NextRequest) {
           name: d.name,
           type: (d.type === "FIXA" ? "FIXA" : "VARIAVEL") as never,
           value: d.value,
-          dueDate: new Date(d.dueDate),
+          dueDate: parseLocalDate(d.dueDate) ?? new Date(),
           status: d.status as never,
           paymentMethod: d.paymentMethod || null,
           categoryId: d.categoryId || null,

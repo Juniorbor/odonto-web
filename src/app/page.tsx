@@ -218,7 +218,7 @@ export default function LandingPage() {
           <div className="flex items-center gap-2.5">
             <ToothLogo boxClassName="h-9 w-9 rounded-lg" />
             <span className="text-base font-bold text-white">
-              <span className="text-gradient">Odonto</span>Cloud
+              <span className="text-gradient">Odonto</span>web
             </span>
           </div>
           <nav className="hidden items-center gap-7 text-sm text-slate-400 md:flex">
@@ -468,12 +468,12 @@ export default function LandingPage() {
             Pronto para <span className="text-gradient">modernizar</span> sua clínica?
           </h2>
           <p className="mt-4 text-sm leading-relaxed text-slate-400">
-            Fale com nossa equipe comercial pelo WhatsApp e descubra como a OdontoCloud pode
+            Fale com nossa equipe comercial pelo WhatsApp e descubra como a Odontoweb pode
             transformar a gestão do seu consultório.
           </p>
           <div className="mt-9 flex flex-wrap items-center justify-center gap-4">
             <a
-              href="https://wa.me/5500000000000?text=Ol%C3%A1!%20Quero%20conhecer%20a%20OdontoCloud"
+              href="https://wa.me/5500000000000?text=Ol%C3%A1!%20Quero%20conhecer%20a%20Odontoweb"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex h-12 items-center gap-2 rounded-xl bg-emerald-500 px-6 text-sm font-semibold text-white transition hover:bg-emerald-400"
@@ -489,10 +489,10 @@ export default function LandingPage() {
               <InstagramIcon className="h-4 w-4" /> Siga-nos no Instagram
             </a>
             <a
-              href="mailto:contato@odontocloud.com.br"
+              href="mailto:contato@odontoweb.com.br"
               className="inline-flex h-12 items-center gap-2 rounded-xl px-5 text-sm font-medium text-slate-400 transition hover:text-sky-300"
             >
-              <FileText className="h-4 w-4" /> contato@odontocloud.com.br
+              <FileText className="h-4 w-4" /> contato@odontoweb.com.br
             </a>
           </div>
         </div>
@@ -504,7 +504,7 @@ export default function LandingPage() {
           <div className="flex items-center gap-2.5">
             <ToothLogo boxClassName="h-8 w-8 rounded-lg" />
             <span className="text-sm font-bold text-white">
-              <span className="text-gradient">Odonto</span>Cloud
+              <span className="text-gradient">Odonto</span>web
             </span>
           </div>
 
@@ -519,7 +519,7 @@ export default function LandingPage() {
             </a>
           </div>
 
-          <p className="text-xs text-slate-600">© {new Date().getFullYear()} OdontoCloud — Todos os direitos reservados</p>
+          <p className="text-xs text-slate-600">© {new Date().getFullYear()} Odontoweb — Todos os direitos reservados</p>
         </div>
       </footer>
     </div>

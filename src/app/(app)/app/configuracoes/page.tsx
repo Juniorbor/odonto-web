@@ -52,7 +52,7 @@ export default async function ConfigIndex() {
   ]
 
   return (
-    <div className="mx-auto max-w-5xl space-y-8 px-4 py-8 sm:px-6">
+    <div className="mx-auto max-w-[1600px] space-y-8 px-6 py-8">
       <div className="anim-fade-up">
         <h1 className="text-2xl font-bold text-white">
           Configurações <span className="text-gradient">da conta</span>

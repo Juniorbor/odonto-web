@@ -10,7 +10,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "OdontoCloud — Plataforma Odontológica Profissional",
+  title: "Odontoweb — Plataforma Odontológica Profissional",
   description:
     "Plataforma completa de gestão odontológica: pacientes, anamnese, odontograma, radiografias, IA, produção, financeiro e relatórios.",
 };

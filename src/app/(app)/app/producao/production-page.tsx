@@ -35,6 +35,12 @@ const TYPE_LABEL: Record<string, string> = {
   OUTRO: "Outros",
 }
 
+const GROUPS = [
+  { key: "FERNANDO", label: "Fernando" },
+  { key: "BERNARDO", label: "Bernardo" },
+  { key: "OUTROS", label: "Outros" },
+] as const
+
 const SERVICE_EXAMS = ["Traçado", "Um dente", "Maxila e Mandíbula", "Maxila", "Mandíbula"] as const
 
 const SERVICE_VALUE: Record<string, string> = {
@@ -176,14 +182,22 @@ export function ProductionPage({
 
   const filtered = patients.filter((p) => p.fullName.toLowerCase().includes(query.toLowerCase())).slice(0, 6)
 
+  const grouped = GROUPS.map((g) => {
+    const items = rows.filter((r) =>
+      g.key === "OUTROS" ? r.serviceType !== "FERNANDO" && r.serviceType !== "BERNARDO" : r.serviceType === g.key,
+    )
+    const subtotal = items.reduce((sum, r) => sum + parseFloat(r.value), 0)
+    return { ...g, items, subtotal }
+  }).filter((g) => g.items.length > 0)
+
   return (
-    <div className="mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6">
+    <div className="mx-auto max-w-[1600px] space-y-5 px-6 py-6">
       <div className="anim-fade-up flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-white">
+          <h1 className="text-lg font-bold text-white">
             Produção <span className="text-gradient">pessoal</span>
           </h1>
-          <p className="mt-1 text-sm text-slate-500">Registre serviços e acompanhe a produção do mês.</p>
+          <p className="mt-1 text-[13px] text-slate-500">Registre serviços e acompanhe a produção do mês.</p>
         </div>
         <Button onClick={() => setShowNew(true)}>
           <Plus className="h-4 w-4" /> Nova produção
@@ -193,14 +207,14 @@ export function ProductionPage({
       <div className="anim-fade-up grid grid-cols-2 gap-4 sm:max-w-2xl">
         <Card>
           <CardBody>
-            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Produção do mês</p>
-            <p className="mt-1 text-2xl font-bold text-emerald-400">{formatCurrency(totalValue)}</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Produção do mês</p>
+            <p className="mt-1 text-xl font-bold text-emerald-400">{formatCurrency(totalValue)}</p>
           </CardBody>
         </Card>
         <Card>
           <CardBody>
-            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Serviços registrados</p>
-            <p className="mt-1 text-2xl font-bold text-sky-400">{totalCount}</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Serviços registrados</p>
+            <p className="mt-1 text-xl font-bold text-sky-400">{totalCount}</p>
           </CardBody>
         </Card>
       </div>
@@ -209,7 +223,7 @@ export function ProductionPage({
         <Input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="w-auto" />
       </div>
 
-      <div className="anim-fade-up stagger space-y-2.5">
+      <div className="anim-fade-up stagger space-y-4">
         {loading ? (
           <p className="py-10 text-center text-sm text-slate-600">Carregando...</p>
         ) : rows.length === 0 ? (
@@ -228,32 +242,60 @@ export function ProductionPage({
             </CardBody>
           </Card>
         ) : (
-          rows.map((r) => (
-            <Card key={r.id}>
-              <CardBody>
-                <div className="flex flex-wrap items-center gap-4">
-                  <div className="w-32 shrink-0">
-                    <p className="text-sm font-semibold text-slate-200">{formatDate(r.date)}</p>
-                    <p className="text-[11px] text-slate-600">{r.code ?? ""}</p>
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-slate-100">{r.serviceName}</p>
-                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                      <Badge tone={r.status === "DONE" ? "success" : r.status === "PENDING" ? "warning" : "danger"}>
-                        {r.status === "DONE" ? "Concluído" : r.status === "PENDING" ? "Pendente" : "Cancelado"}
-                      </Badge>
-                      <span>{TYPE_LABEL[r.serviceType] ?? r.serviceType}</span>
-                      {r.patientName && <span>· {r.patientName}</span>}
-                      {r.category && <span>· {r.category.name}</span>}
-                    </div>
-                  </div>
-                  <p className="text-base font-bold text-emerald-400">{formatCurrency(r.value)}</p>
-                  <Button size="sm" variant="ghost" className="text-rose-400 hover:bg-rose-500/10" onClick={() => setRemoving(r)}>
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              </CardBody>
-            </Card>
+          grouped.map((g) => (
+            <div key={g.key} className="overflow-hidden rounded-2xl border border-[#16213a] bg-[#0a1120]/60">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#1c2942] bg-[#0e1626] px-4 py-2">
+                <p className="text-xs font-bold uppercase tracking-wider text-sky-400">{g.label}</p>
+                <p className="text-[11px] text-slate-500">
+                  {g.items.length} {g.items.length === 1 ? "serviço" : "serviços"} ·{" "}
+                  <span className="font-semibold text-emerald-400">{formatCurrency(g.subtotal)}</span>
+                </p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-[12px]">
+                  <thead>
+                    <tr className="border-b border-[#16213a] text-[10px] uppercase tracking-wider text-slate-600">
+                      <th className="whitespace-nowrap px-4 py-1.5 text-left font-semibold">Data</th>
+                      <th className="whitespace-nowrap px-4 py-1.5 text-left font-semibold">Serviço</th>
+                      <th className="whitespace-nowrap px-4 py-1.5 text-left font-semibold">Paciente</th>
+                      <th className="whitespace-nowrap px-4 py-1.5 text-left font-semibold">Clínica</th>
+                      <th className="whitespace-nowrap px-4 py-1.5 text-right font-semibold">Valor</th>
+                      <th className="whitespace-nowrap px-4 py-1.5 text-left font-semibold">Status</th>
+                      <th className="px-4 py-1.5" aria-label="Ações" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {g.items.map((r) => (
+                      <tr key={r.id} className="border-b border-[#131d33] transition last:border-0 hover:bg-white/[0.02]">
+                        <td className="whitespace-nowrap px-4 py-1.5">
+                          <p className="text-[12px] font-semibold text-slate-200">{formatDate(r.date)}</p>
+                          <p className="text-[10px] text-slate-600">{r.code ?? ""}</p>
+                        </td>
+                        <td className="px-4 py-1.5">
+                          <p className="truncate text-[12px] font-semibold text-slate-100">{r.serviceName}</p>
+                          <p className="text-[10px] text-slate-500">{TYPE_LABEL[r.serviceType] ?? r.serviceType}</p>
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-1.5 text-[11px] text-slate-400">{r.patientName ?? "—"}</td>
+                        <td className="whitespace-nowrap px-4 py-1.5 text-[11px] text-slate-400">{r.category?.name ?? "—"}</td>
+                        <td className="whitespace-nowrap px-4 py-1.5 text-right text-[12px] font-bold text-emerald-400">
+                          {formatCurrency(r.value)}
+                        </td>
+                        <td className="px-4 py-1.5">
+                          <Badge tone={r.status === "DONE" ? "success" : r.status === "PENDING" ? "warning" : "danger"}>
+                            {r.status === "DONE" ? "Concluído" : r.status === "PENDING" ? "Pendente" : "Cancelado"}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-1.5 text-right">
+                          <Button size="sm" variant="ghost" className="text-rose-400 hover:bg-rose-500/10" onClick={() => setRemoving(r)}>
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           ))
         )}
       </div>

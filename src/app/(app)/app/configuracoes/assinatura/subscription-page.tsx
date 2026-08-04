@@ -78,7 +78,7 @@ export function SubscriptionPage({
             <div>
               <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Plano atual</p>
               <p className="mt-1 text-2xl font-bold text-white">
-                {subscription.planName} <span className="text-gradient">OdontoCloud</span>
+                {subscription.planName} <span className="text-gradient">Odontoweb</span>
               </p>
               <div className="mt-2 flex items-center gap-2">
                 <Badge tone={meta.tone}>{meta.label}</Badge>
@@ -135,8 +135,8 @@ export function SubscriptionPage({
           <p className="flex items-start gap-3 text-sm text-slate-400">
             <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-sky-400" />
             Precisa de mais usuários, armazenamento ou módulos? Fale com o suporte em{" "}
-            <Link href="mailto:contato@odontocloud.com.br" className="text-sky-400 hover:text-sky-300">
-              contato@odontocloud.com.br
+            <Link href="mailto:contato@odontoweb.com.br" className="text-sky-400 hover:text-sky-300">
+              contato@odontoweb.com.br
             </Link>
             .
           </p>

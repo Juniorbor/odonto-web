@@ -7,13 +7,6 @@ import {
   Briefcase,
   Wallet,
   AlertCircle,
-  UserPlus,
-  CalendarPlus,
-  Smile,
-  ScanLine,
-  PlusCircle,
-  BarChart3,
-  Sparkles,
   ArrowRight,
   Activity,
   Clock,
@@ -87,28 +80,6 @@ export default async function AppDashboard() {
           }),
     ])
 
-  const greeting = (() => {
-    const h = new Date().getHours()
-    if (h < 12) return "Bom dia"
-    if (h < 18) return "Boa tarde"
-    return "Boa noite"
-  })()
-
-  const firstName = ctx.user.name.split(" ")[0]
-
-  const quickActions = ctx.isAdminMaster && !ctx.impersonating
-    ? []
-    : [
-    { href: "/app/pacientes/novo", icon: <UserPlus className="h-4 w-4" />, label: "Novo paciente", module: "patients" },
-    { href: "/app/atendimentos/novo", icon: <CalendarPlus className="h-4 w-4" />, label: "Novo atendimento", module: "appointments" },
-    { href: "/app/odontograma", icon: <Smile className="h-4 w-4" />, label: "Odontograma", module: "odontogram" },
-    { href: "/app/radiografias", icon: <ScanLine className="h-4 w-4" />, label: "Adicionar radiografia", module: "radiographs" },
-    { href: "/app/producao", icon: <PlusCircle className="h-4 w-4" />, label: "Nova produção", module: "production" },
-    { href: "/app/financeiro", icon: <Wallet className="h-4 w-4" />, label: "Financeiro", module: "finance" },
-    { href: "/app/relatorios", icon: <BarChart3 className="h-4 w-4" />, label: "Gerar relatório", module: "reports" },
-    { href: "/app/ia", icon: <Sparkles className="h-4 w-4" />, label: "Assistente IA", module: "ai" },
-  ].filter((a) => ctx.isAdminMaster || !a.module || hasModule(ctx, a.module))
-
   const stats = [
     { label: "Pacientes cadastrados", value: patientCount, icon: <Users className="h-5 w-5" />, tone: "text-sky-400 bg-sky-500/10 border-sky-500/25" },
     { label: "Pacientes ativos", value: activePatients, icon: <Activity className="h-5 w-5" />, tone: "text-emerald-400 bg-emerald-500/10 border-emerald-500/25" },
@@ -141,23 +112,9 @@ export default async function AppDashboard() {
     <div className="mx-auto max-w-[1600px] space-y-6 px-6 py-8">
       <div className="anim-fade-up">
         <h1 className="text-2xl font-bold text-white">
-          {greeting}, Dr(a). <span className="text-gradient">{firstName}</span>
+          Boa tarde, <span className="text-gradient">{ctx.user.name}</span>
         </h1>
         <p className="mt-1 text-sm text-slate-500">Visão geral da sua prática odontológica.</p>
-      </div>
-
-      {/* Atalhos */}
-      <div className="anim-fade-up stagger flex flex-wrap gap-2" style={{ animationDelay: "0.05s" }}>
-        {quickActions.map((a) => (
-          <Link
-            key={a.href}
-            href={a.href}
-            className="group inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-[#1c2942] bg-[#0a1120] px-2.5 py-1.5 text-xs font-medium text-slate-300 transition-all hover:-translate-y-0.5 hover:border-sky-600/50 hover:text-sky-300"
-          >
-            <span className="text-slate-500 transition group-hover:text-sky-400">{a.icon}</span>
-            {a.label}
-          </Link>
-        ))}
       </div>
 
       {/* Cards */}

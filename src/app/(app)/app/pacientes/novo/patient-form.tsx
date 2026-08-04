@@ -82,7 +82,7 @@ export function PatientForm({ patient }: { patient?: PatientFormData }) {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 px-4 py-8 sm:px-6">
+    <div className="mx-auto max-w-[1600px] space-y-6 px-4 py-8 sm:px-8">
       <div className="anim-fade-up">
         <Link
           href={patient ? `/app/pacientes/${patient.id}` : "/app/pacientes"}
@@ -103,47 +103,59 @@ export function PatientForm({ patient }: { patient?: PatientFormData }) {
          
         />
         <CardBody className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Nome completo" required>
-              <Input value={form.fullName} onChange={(e) => set("fullName", e.target.value)} placeholder="Maria da Silva Santos" />
-            </Field>
-            <Field label="Nome social">
-              <Input value={form.socialName} onChange={(e) => set("socialName", e.target.value)} placeholder="Como deseja ser chamado(a)" />
-            </Field>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Field label="CPF">
-              <Input value={form.cpf} onChange={(e) => set("cpf", e.target.value)} placeholder="000.000.000-00" />
-            </Field>
-            <Field label="RG">
-              <Input value={form.rg} onChange={(e) => set("rg", e.target.value)} placeholder="00.000.000-0" />
-            </Field>
-            <Field label="Nascimento">
-              <Input value={form.birthDate} onChange={(e) => set("birthDate", e.target.value)} type="date" max={todayInput()} />
-            </Field>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Field label="Sexo biológico">
-              <Select value={form.sex} onChange={(e) => set("sex", e.target.value)}>
-                <option value="">Selecione</option>
-                <option value="F">Feminino</option>
-                <option value="M">Masculino</option>
-                <option value="O">Outro</option>
-              </Select>
-            </Field>
-            <Field label="Estado civil">
-              <Select value={form.maritalStatus} onChange={(e) => set("maritalStatus", e.target.value)}>
-                <option value="">Selecione</option>
-                <option value="Solteiro(a)">Solteiro(a)</option>
-                <option value="Casado(a)">Casado(a)</option>
-                <option value="Divorciado(a)">Divorciado(a)</option>
-                <option value="Viúvo(a)">Viúvo(a)</option>
-                <option value="União estável">União estável</option>
-              </Select>
-            </Field>
-            <Field label="Profissão / ocupação">
-              <Input value={form.occupation} onChange={(e) => set("occupation", e.target.value)} placeholder="Autônomo" />
-            </Field>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
+            <div className="sm:col-span-2 xl:col-span-3">
+              <Field label="Nome completo" required>
+                <Input value={form.fullName} onChange={(e) => set("fullName", e.target.value)} placeholder="Maria da Silva Santos" />
+              </Field>
+            </div>
+            <div className="sm:col-span-2 xl:col-span-3">
+              <Field label="Nome social">
+                <Input value={form.socialName} onChange={(e) => set("socialName", e.target.value)} placeholder="Como deseja ser chamado(a)" />
+              </Field>
+            </div>
+            <div className="xl:col-span-2">
+              <Field label="CPF">
+                <Input value={form.cpf} onChange={(e) => set("cpf", e.target.value)} placeholder="000.000.000-00" />
+              </Field>
+            </div>
+            <div className="xl:col-span-2">
+              <Field label="RG">
+                <Input value={form.rg} onChange={(e) => set("rg", e.target.value)} placeholder="00.000.000-0" />
+              </Field>
+            </div>
+            <div className="xl:col-span-2">
+              <Field label="Nascimento">
+                <Input value={form.birthDate} onChange={(e) => set("birthDate", e.target.value)} type="date" max={todayInput()} />
+              </Field>
+            </div>
+            <div className="xl:col-span-2">
+              <Field label="Sexo biológico">
+                <Select value={form.sex} onChange={(e) => set("sex", e.target.value)}>
+                  <option value="">Selecione</option>
+                  <option value="F">Feminino</option>
+                  <option value="M">Masculino</option>
+                  <option value="O">Outro</option>
+                </Select>
+              </Field>
+            </div>
+            <div className="xl:col-span-2">
+              <Field label="Estado civil">
+                <Select value={form.maritalStatus} onChange={(e) => set("maritalStatus", e.target.value)}>
+                  <option value="">Selecione</option>
+                  <option value="Solteiro(a)">Solteiro(a)</option>
+                  <option value="Casado(a)">Casado(a)</option>
+                  <option value="Divorciado(a)">Divorciado(a)</option>
+                  <option value="Viúvo(a)">Viúvo(a)</option>
+                  <option value="União estável">União estável</option>
+                </Select>
+              </Field>
+            </div>
+            <div className="xl:col-span-2">
+              <Field label="Profissão / ocupação">
+                <Input value={form.occupation} onChange={(e) => set("occupation", e.target.value)} placeholder="Autônomo" />
+              </Field>
+            </div>
           </div>
         </CardBody>
       </Card>

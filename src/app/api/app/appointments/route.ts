@@ -10,6 +10,7 @@ const createSchema = z.object({
   endsAt: z.string().optional(),
   type: z.string().max(120).optional(),
   notes: z.string().max(2000).optional(),
+  professionalId: z.string().optional(),
   status: z.enum(["SCHEDULED", "CONFIRMED", "IN_PROGRESS", "COMPLETED", "CANCELLED", "NO_SHOW"]).optional(),
 })
 
@@ -36,6 +37,7 @@ export async function GET(req: NextRequest) {
       type: true,
       notes: true,
       patient: { select: { id: true, fullName: true, phone: true } },
+      professional: { select: { id: true, fullName: true } },
       user: { select: { id: true, name: true } },
     },
   })
@@ -67,6 +69,13 @@ export async function POST(req: NextRequest) {
     const patient = await prisma.patient.findFirst({ where: { id: d.patientId, clinicId: ctx.clinicId } })
     if (!patient) return NextResponse.json({ error: "Paciente não encontrado." }, { status: 404 })
 
+    if (d.professionalId) {
+      const professional = await prisma.professional.findFirst({
+        where: { id: d.professionalId, clinicId: ctx.clinicId },
+      })
+      if (!professional) return NextResponse.json({ error: "Profissional não encontrado." }, { status: 404 })
+    }
+
     const startsAt = new Date(d.startsAt)
     if (isNaN(startsAt.getTime())) return NextResponse.json({ error: "Data inválida." }, { status: 400 })
     const endsAt = d.endsAt ? new Date(d.endsAt) : new Date(startsAt.getTime() + 30 * 60 * 1000)
@@ -76,6 +85,7 @@ export async function POST(req: NextRequest) {
         clinicId: ctx.clinicId,
         patientId: d.patientId,
         userId: ctx.user.id,
+        professionalId: d.professionalId ?? null,
         startsAt,
         endsAt,
         type: d.type,
@@ -91,7 +101,7 @@ export async function POST(req: NextRequest) {
       action: "appointment_created",
       entityType: "Appointment",
       entityId: appointment.id,
-      details: { patientId: d.patientId, startsAt: startsAt.toISOString(), type: d.type },
+      details: { patientId: d.patientId, professionalId: d.professionalId ?? null, startsAt: startsAt.toISOString(), type: d.type },
       ip: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || null,
     })
 
