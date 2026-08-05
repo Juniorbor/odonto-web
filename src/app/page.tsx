@@ -169,7 +169,7 @@ function Tooth3D() {
     const rect = e.currentTarget.getBoundingClientRect()
     const px = (e.clientX - rect.left) / rect.width - 0.5
     const py = (e.clientY - rect.top) / rect.height - 0.5
-    setTilt({ x: py * -16, y: px * 18 })
+    setTilt({ x: py * -14, y: px * 16 })
   }
 
   return (
@@ -181,163 +181,123 @@ function Tooth3D() {
         setHovering(false)
         setTilt({ x: 0, y: 0 })
       }}
-      style={{ perspective: "1200px" }}
+      style={{ perspective: "1400px" }}
     >
+      {/* brilho de fundo */}
+      <div className="absolute h-80 w-80 rounded-full bg-sky-500/25 blur-3xl" style={{ transform: "translateZ(-140px)" }} />
       <div
-        className="relative flex items-center justify-center"
-        style={{
-          transform: `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)`,
-          transformStyle: "preserve-3d",
-          transition: hovering
-            ? "transform 0.15s ease-out"
-            : "transform 0.8s cubic-bezier(0.22, 1, 0.36, 1)",
-          willChange: "transform",
-        }}
-      >
-        {/* brilho de fundo */}
-        <div className="absolute h-80 w-80 rounded-full bg-sky-500/25 blur-3xl" style={{ transform: "translateZ(-120px)" }} />
-        <div
-          className="absolute h-52 w-52 rounded-full bg-cyan-400/15 blur-2xl"
-          style={{ transform: "translateZ(-60px)", animationDelay: "1.4s" }}
-        />
-
-        {/* anéis de profundidade */}
-        <div
-          className="anim-spin-slow absolute h-[26rem] w-[26rem] rounded-full border border-sky-500/15"
-          style={{ transform: "translateZ(-70px)" }}
-        >
-          <span className="absolute left-1/2 top-0 h-2.5 w-2.5 -translate-x-1/2 rounded-full bg-sky-400 shadow-glow" />
-          <span className="absolute bottom-8 left-4 h-1.5 w-1.5 rounded-full bg-cyan-400" />
-        </div>
-        <div
-          className="anim-float absolute h-80 w-80 rounded-full border border-dashed border-cyan-400/15"
-          style={{ transform: "translateZ(-35px)", animationDelay: "1.2s" }}
-        />
-
-        {/* dente traseiro (profundidade) */}
-        <div className="absolute blur-[6px]" style={{ transform: "translateZ(-45px)" }}>
-          <ToothSvg gradient="dark" />
-        </div>
-
-        {/* dente principal */}
-        <div className="anim-float relative z-10" style={{ transform: "translateZ(0px)", animationDelay: "0.5s" }}>
-          <ToothSvg gradient="main" />
-        </div>
-
-        {/* camada de brilho frontal */}
-        <div className="absolute z-20" style={{ transform: "translateZ(50px)", opacity: 0.75 }}>
-          <ToothSvg gradient="gloss" />
-        </div>
-
-        {/* chips flutuantes em 3D */}
-        <div
-          className="anim-float absolute -left-6 top-16 z-30 rounded-2xl border border-[#22335a] bg-[#0c1322]/90 p-3 shadow-xl backdrop-blur"
-          style={{ transform: "translateZ(75px)", animationDelay: "1.6s" }}
-        >
-          <ScanLine className="h-6 w-6 text-cyan-400" />
-        </div>
-        <div
-          className="anim-float absolute -right-4 top-24 z-30 rounded-2xl border border-[#22335a] bg-[#0c1322]/90 p-3 shadow-xl backdrop-blur"
-          style={{ transform: "translateZ(85px)", animationDelay: "2.1s" }}
-        >
-          <Sparkles className="h-6 w-6 text-indigo-400" />
-        </div>
-        <div
-          className="anim-float absolute -left-8 bottom-24 z-30 rounded-2xl border border-[#22335a] bg-[#0c1322]/90 p-3 shadow-xl backdrop-blur"
-          style={{ transform: "translateZ(65px)", animationDelay: "0.9s" }}
-        >
-          <BarChart3 className="h-6 w-6 text-emerald-400" />
-        </div>
-        <div
-          className="anim-float absolute -right-8 bottom-32 z-30 rounded-2xl border border-[#22335a] bg-[#0c1322]/90 p-3 shadow-xl backdrop-blur"
-          style={{ transform: "translateZ(70px)", animationDelay: "2.6s" }}
-        >
-          <Smile className="h-6 w-6 text-sky-400" />
-        </div>
-
-        {/* selo de segurança */}
-        <div
-          className="absolute -bottom-14 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-2xl border border-[#1c2942] bg-[#0c1322]/90 px-4 py-2.5 shadow-xl backdrop-blur"
-          style={{ transform: "translateZ(60px)" }}
-        >
-          <ShieldCheck className="h-4 w-4 text-emerald-400" />
-          <span className="text-xs font-medium text-slate-300">Dados protegidos com LGPD</span>
-        </div>
-
-        {/* sombra no chão */}
-        <div
-          className="absolute -bottom-28 left-1/2 h-12 w-72 rounded-[100%] bg-sky-500/25 blur-2xl"
-          style={{ transform: `translateZ(-20px) translateX(-50%) scaleX(${1 - Math.abs(tilt.y) / 60})` }}
-        />
-      </div>
-
-      {/* legendas laterais */}
-      <div className="pointer-events-none absolute bottom-8 left-1/2 flex -translate-x-1/2 items-center gap-2 text-[11px] text-slate-600">
-        <Sparkles className="h-3 w-3 text-sky-500/70" />
-        Mova o cursor para explorar em 3D
-      </div>
-    </div>
-  )
-}
-
-function ToothSvg({ gradient }: { gradient: "main" | "gloss" | "dark" }) {
-  const id = `tooth3d-${gradient}`
-  const size = gradient === "dark" ? "h-60 w-56" : gradient === "gloss" ? "h-56 w-52" : "h-64 w-60"
-  const drop =
-    gradient === "main"
-      ? "drop-shadow-[0_18px_40px_rgba(14,165,233,0.35)]"
-      : gradient === "gloss"
-        ? "drop-shadow-[0_8px_24px_rgba(125,211,252,0.3)]"
-        : ""
-
-  return (
-    <svg viewBox="0 0 200 220" className={`${size} ${drop}`} aria-hidden="true">
-      <defs>
-        <linearGradient id={id} x1="0%" y1="0%" x2="100%" y2="100%">
-          {gradient === "main" && (
-            <>
-              <stop offset="0%" stopColor="#7dd3fc" />
-              <stop offset="45%" stopColor="#e0f2fe" />
-              <stop offset="100%" stopColor="#38bdf8" />
-            </>
-          )}
-          {gradient === "gloss" && (
-            <>
-              <stop offset="0%" stopColor="#ffffff" />
-              <stop offset="100%" stopColor="#ffffff" stopOpacity="0.5" />
-            </>
-          )}
-          {gradient === "dark" && (
-            <>
-              <stop offset="0%" stopColor="#0e3a5f" />
-              <stop offset="100%" stopColor="#082238" />
-            </>
-          )}
-        </linearGradient>
-      </defs>
-      <path
-        d="M100 12
-           C 128 12, 152 40, 150 78
-           C 148 104, 158 126, 164 150
-           C 170 176, 158 202, 138 204
-           C 122 206, 116 184, 100 184
-           C 84 184, 78 206, 62 204
-           C 42 202, 30 176, 36 150
-           C 42 126, 52 104, 50 78
-           C 48 40, 72 12, 100 12 Z"
-        fill={`url(#${id})`}
+        className="absolute h-52 w-52 rounded-full bg-cyan-400/15 blur-2xl"
+        style={{ transform: "translateZ(-70px)", animationDelay: "1.4s" }}
       />
-      {gradient === "gloss" && (
-        <path
-          d="M100 12
-             C 112 40, 112 70, 104 92"
-          fill="none"
-          stroke="#ffffff"
-          strokeOpacity="0.9"
-          strokeWidth="5"
-          strokeLinecap="round"
-        />
-      )}
-    </svg>
+
+      {/* anéis de profundidade */}
+      <div className="anim-spin-slow absolute h-[28rem] w-[28rem] rounded-full border border-sky-500/15" style={{ transform: "translateZ(-80px)" }}>
+        <span className="absolute left-1/2 top-0 h-2.5 w-2.5 -translate-x-1/2 rounded-full bg-sky-400 shadow-glow" />
+        <span className="absolute bottom-8 left-4 h-1.5 w-1.5 rounded-full bg-cyan-400" />
+      </div>
+      <div
+        className="anim-float absolute h-80 w-80 rounded-full border border-dashed border-cyan-400/15"
+        style={{ transform: "translateZ(-40px)", animationDelay: "1.2s" }}
+      />
+
+      {/* dente real girando em 360° */}
+      <div className="anim-float relative z-10" style={{ animationDelay: "0.5s" }}>
+        <div
+          style={{
+            transform: `perspective(1400px) rotateX(${-12 + tilt.x}deg) rotateY(${tilt.y}deg)`,
+            transformStyle: "preserve-3d",
+            transition: hovering
+              ? "transform 0.15s ease-out"
+              : "transform 0.8s cubic-bezier(0.22, 1, 0.36, 1)",
+            willChange: "transform",
+          }}
+        >
+          <div
+            className="anim-spin-y relative"
+            style={{ width: 264, height: 264, transformStyle: "preserve-3d" }}
+          >
+            {/* profundidade difusa (volume suave, sem fatias) */}
+            <div
+              className="absolute inset-0 opacity-40 blur-[10px]"
+              style={{ transform: "translateZ(-48px)" }}
+            >
+              <img
+                src="/DENTE.png"
+                alt=""
+                draggable={false}
+                className="h-full w-full select-none object-contain"
+                style={{ filter: "brightness(0.55)" }}
+              />
+            </div>
+            {/* face frontal (imagem completa) */}
+            <div
+              className="absolute inset-0"
+              style={{ transform: "translateZ(2px)", backfaceVisibility: "hidden" }}
+            >
+              <img
+                src="/DENTE.png"
+                alt="Dente em 3D"
+                draggable={false}
+                className="h-full w-full select-none object-contain"
+              />
+            </div>
+            {/* face traseira espelhada — completa na volta */}
+            <div
+              className="absolute inset-0"
+              style={{ transform: "rotateY(180deg) translateZ(2px)", backfaceVisibility: "hidden" }}
+            >
+              <img
+                src="/DENTE.png"
+                alt=""
+                draggable={false}
+                className="h-full w-full select-none object-contain"
+                style={{ transform: "scaleX(-1)" }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* chips flutuantes em 3D */}
+      <div
+        className="anim-float absolute -left-6 top-16 z-30 rounded-2xl border border-[#22335a] bg-[#0c1322]/90 p-3 shadow-xl backdrop-blur"
+        style={{ transform: "translateZ(75px)", animationDelay: "1.6s" }}
+      >
+        <ScanLine className="h-6 w-6 text-cyan-400" />
+      </div>
+      <div
+        className="anim-float absolute -right-4 top-24 z-30 rounded-2xl border border-[#22335a] bg-[#0c1322]/90 p-3 shadow-xl backdrop-blur"
+        style={{ transform: "translateZ(85px)", animationDelay: "2.1s" }}
+      >
+        <Sparkles className="h-6 w-6 text-indigo-400" />
+      </div>
+      <div
+        className="anim-float absolute -left-8 bottom-24 z-30 rounded-2xl border border-[#22335a] bg-[#0c1322]/90 p-3 shadow-xl backdrop-blur"
+        style={{ transform: "translateZ(65px)", animationDelay: "0.9s" }}
+      >
+        <BarChart3 className="h-6 w-6 text-emerald-400" />
+      </div>
+      <div
+        className="anim-float absolute -right-8 bottom-32 z-30 rounded-2xl border border-[#22335a] bg-[#0c1322]/90 p-3 shadow-xl backdrop-blur"
+        style={{ transform: "translateZ(70px)", animationDelay: "2.6s" }}
+      >
+        <Smile className="h-6 w-6 text-sky-400" />
+      </div>
+
+      {/* selo de segurança */}
+      <div
+        className="absolute -bottom-14 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-2xl border border-[#1c2942] bg-[#0c1322]/90 px-4 py-2.5 shadow-xl backdrop-blur"
+        style={{ transform: "translateZ(60px)" }}
+      >
+        <ShieldCheck className="h-4 w-4 text-emerald-400" />
+        <span className="text-xs font-medium text-slate-300">Dados protegidos com LGPD</span>
+      </div>
+
+      {/* sombra no chão */}
+      <div
+        className="absolute -bottom-28 left-1/2 h-12 w-72 rounded-[100%] bg-sky-500/25 blur-2xl"
+        style={{ transform: `translateZ(-20px) translateX(-50%) scaleX(${1 - Math.abs(tilt.y) / 60})` }}
+      />
+    </div>
   )
 }

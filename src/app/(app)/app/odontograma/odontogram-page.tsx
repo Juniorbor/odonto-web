@@ -27,8 +27,25 @@ const COND_MAP: Record<string, { color: string; bg: string }> = Object.fromEntri
   CONDITIONS.map((c) => [c.value, { color: c.color, bg: c.bg }]),
 )
 
-const UPPER = [18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 28]
-const LOWER = [48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38]
+const ODONTO_SRC = "/odontograma.png"
+const ODONTO_W = 671
+const ODONTO_H = 372
+
+// Posições (x, y em px da imagem) de cada dente no odontograma
+const SPOTS: { n: number; x: number; y: number }[] = [
+  { n: 18, x: 29.5, y: 44.5 }, { n: 17, x: 71.5, y: 44.5 }, { n: 16, x: 111, y: 44.5 },
+  { n: 15, x: 150, y: 44.5 }, { n: 14, x: 188.5, y: 44.5 }, { n: 13, x: 230.5, y: 44.5 },
+  { n: 12, x: 270.5, y: 44.5 }, { n: 11, x: 309.5, y: 44.5 }, { n: 21, x: 365, y: 44.5 },
+  { n: 22, x: 407, y: 44.5 }, { n: 23, x: 446.5, y: 44.5 }, { n: 24, x: 485.5, y: 44.5 },
+  { n: 25, x: 523, y: 44.5 }, { n: 26, x: 564, y: 44.5 }, { n: 27, x: 603.5, y: 44.5 },
+  { n: 28, x: 642.5, y: 44.5 },
+  { n: 48, x: 29, y: 326.5 }, { n: 47, x: 73.5, y: 326.5 }, { n: 46, x: 113.5, y: 326.5 },
+  { n: 45, x: 155.5, y: 326.5 }, { n: 44, x: 198.5, y: 326.5 }, { n: 43, x: 237.5, y: 326.5 },
+  { n: 42, x: 277, y: 326.5 }, { n: 41, x: 313, y: 326.5 }, { n: 31, x: 353.5, y: 326.5 },
+  { n: 32, x: 389.5, y: 326.5 }, { n: 33, x: 427, y: 326.5 }, { n: 34, x: 464.5, y: 326.5 },
+  { n: 35, x: 501.5, y: 326.5 }, { n: 36, x: 543.5, y: 326.5 }, { n: 37, x: 591.5, y: 326.5 },
+  { n: 38, x: 638.5, y: 326.5 },
+]
 
 export function OdontogramPage({
   patients,
@@ -117,18 +134,26 @@ export function OdontogramPage({
     }
   }
 
-  const Tooth = ({ n }: { n: number }) => {
+  const Tooth = ({ n, x, y }: { n: number; x: number; y: number }) => {
     const c = condFor(n)
-    const style = c
-      ? COND_MAP[c.condition]
-      : { color: "text-slate-500", bg: "border-[#23345a] bg-[#0a1120]" }
+    const cond = c ? COND_MAP[c.condition] : null
+    const isSelected = selectedTooth === n
     return (
       <button
         onClick={() => selectTooth(n)}
-        className={`flex h-9 w-7 items-center justify-center rounded-md border text-[11px] font-bold transition hover:-translate-y-0.5 ${style.bg} ${style.color}`}
-        title={`Dente ${n}`}
+        title={`Dente ${n}${c ? ` · ${c.condition}` : ""}`}
+        className={`group absolute flex h-[30px] w-[30px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 text-[10px] font-bold transition-all hover:z-10 hover:scale-125 ${
+          cond
+            ? `${cond.bg} ${cond.color}`
+            : isSelected
+              ? "border-sky-400 bg-sky-500/25 text-sky-200"
+              : "border-[#23345a]/50 bg-slate-900/25 text-slate-300"
+        }`}
+        style={{ left: `${(x / ODONTO_W) * 100}%`, top: `${(y / ODONTO_H) * 100}%` }}
       >
-        {n}
+        <span className={`transition ${cond || isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
+          {n}
+        </span>
       </button>
     )
   }
@@ -173,19 +198,20 @@ export function OdontogramPage({
                 </div>
               ) : (
                 <div className="space-y-6">
-                  <div>
-                    <p className="mb-2 text-center text-[11px] font-bold uppercase tracking-widest text-slate-600">Superior</p>
-                    <div className="mx-auto grid max-w-xl grid-cols-8 gap-1.5">
-                      {UPPER.map((n) => <Tooth key={n} n={n} />)}
-                    </div>
+                  <div className="relative mx-auto w-full max-w-3xl">
+                    <img
+                      src={ODONTO_SRC}
+                      alt="Odontograma"
+                      draggable={false}
+                      className="w-full select-none rounded-xl"
+                    />
+                    {SPOTS.map((spot) => (
+                      <Tooth key={spot.n} n={spot.n} x={spot.x} y={spot.y} />
+                    ))}
                   </div>
-                  <div className="mx-auto h-px w-full max-w-2xl bg-gradient-to-r from-transparent via-[#23345a] to-transparent" />
-                  <div>
-                    <p className="mb-2 text-center text-[11px] font-bold uppercase tracking-widest text-slate-600">Inferior</p>
-                    <div className="mx-auto grid max-w-xl grid-cols-8 gap-1.5">
-                      {LOWER.map((n) => <Tooth key={n} n={n} />)}
-                    </div>
-                  </div>
+                  <p className="text-center text-[11px] text-slate-600">
+                    Passe o mouse sobre um dente e clique para registrar a condição.
+                  </p>
                 </div>
               )}
               <div className="mt-6 flex flex-wrap gap-2">

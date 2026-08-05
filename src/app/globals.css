@@ -179,6 +179,15 @@ body {
   }
 }
 
+@keyframes spin-y {
+  from {
+    transform: rotateY(0deg);
+  }
+  to {
+    transform: rotateY(360deg);
+  }
+}
+
 .anim-fade-up {
   animation: fade-up 0.5s ease both;
 }
@@ -196,6 +205,9 @@ body {
 }
 .anim-spin-slow {
   animation: spin-slow 14s linear infinite;
+}
+.anim-spin-y {
+  animation: spin-y 13s linear infinite;
 }
 
 .stagger > * {
