@@ -132,7 +132,7 @@ export function NewAppointmentForm({
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 px-4 py-8 sm:px-6">
+    <div className="mx-auto max-w-[1600px] space-y-6 px-6 py-8">
       <div className="anim-fade-up">
         <Link href="/app/pacientes" className="inline-flex items-center gap-1.5 text-sm text-slate-400 transition hover:text-sky-300">
           <ArrowLeft className="h-4 w-4" /> Voltar
