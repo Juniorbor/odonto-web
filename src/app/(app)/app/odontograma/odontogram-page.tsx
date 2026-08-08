@@ -1,50 +1,34 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Loader2, RotateCcw, Smile } from "lucide-react"
-import { Card, CardBody, Badge } from "@/components/ui/card"
+import { Card, CardBody } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Field, Input, Select } from "@/components/ui/input"
 import { useToast } from "@/components/ui/toaster"
 import { EmptyState } from "@/components/ui/feedback"
+import { OdontogramArch } from "./odontogram-teeth"
 
 type OdontoPatient = { id: string; fullName: string }
-type ToothCond = { id: string; toothNumber: number; surface: string; condition: string; note: string | null }
+type ToothCond = { id: string; toothNumber: number; surface: string; condition: string; shape: string; color: string | null; note: string | null }
 
-const CONDITIONS: { value: string; label: string; color: string; bg: string }[] = [
-  { value: "CARIE", label: "Cárie", color: "text-amber-300", bg: "bg-amber-500/20 border-amber-500/50" },
-  { value: "OBTURADO", label: "Obturado", color: "text-emerald-300", bg: "bg-emerald-500/20 border-emerald-500/50" },
-  { value: "COROA", label: "Coroa", color: "text-sky-300", bg: "bg-sky-500/20 border-sky-500/50" },
-  { value: "EXTRAIDO", label: "Extraído", color: "text-rose-300", bg: "bg-rose-500/20 border-rose-500/50" },
-  { value: "FRATURADO", label: "Fraturado", color: "text-orange-300", bg: "bg-orange-500/20 border-orange-500/50" },
-  { value: "RAIZ", label: "Raiz", color: "text-violet-300", bg: "bg-violet-500/20 border-violet-500/50" },
-  { value: "IMPLANTE", label: "Implante", color: "text-cyan-300", bg: "bg-cyan-500/20 border-cyan-500/50" },
+const CONDITIONS: { value: string; label: string; hex: string; color: string; bg: string }[] = [
+  { value: "CARIE", label: "Cárie", hex: "#f59e0b", color: "text-amber-300", bg: "bg-amber-500/20 border-amber-500/50" },
+  { value: "OBTURADO", label: "Obturado", hex: "#10b981", color: "text-emerald-300", bg: "bg-emerald-500/20 border-emerald-500/50" },
+  { value: "COROA", label: "Coroa", hex: "#0ea5e9", color: "text-sky-300", bg: "bg-sky-500/20 border-sky-500/50" },
+  { value: "EXTRAIDO", label: "Extraído", hex: "#f43f5e", color: "text-rose-300", bg: "bg-rose-500/20 border-rose-500/50" },
+  { value: "FRATURADO", label: "Fraturado", hex: "#f97316", color: "text-orange-300", bg: "bg-orange-500/20 border-orange-500/50" },
+  { value: "RAIZ", label: "Raiz", hex: "#8b5cf6", color: "text-violet-300", bg: "bg-violet-500/20 border-violet-500/50" },
+  { value: "IMPLANTE", label: "Implante", hex: "#06b6d4", color: "text-cyan-300", bg: "bg-cyan-500/20 border-cyan-500/50" },
 ]
 
-const COND_MAP: Record<string, { color: string; bg: string }> = Object.fromEntries(
-  CONDITIONS.map((c) => [c.value, { color: c.color, bg: c.bg }]),
-)
+const CONDITION_HEX: Record<string, string> = Object.fromEntries(CONDITIONS.map((c) => [c.value, c.hex]))
 
-const ODONTO_SRC = "/odontograma.png"
-const ODONTO_W = 671
-const ODONTO_H = 372
-
-// Posições (x, y em px da imagem) de cada dente no odontograma
-const SPOTS: { n: number; x: number; y: number }[] = [
-  { n: 18, x: 29.5, y: 44.5 }, { n: 17, x: 71.5, y: 44.5 }, { n: 16, x: 111, y: 44.5 },
-  { n: 15, x: 150, y: 44.5 }, { n: 14, x: 188.5, y: 44.5 }, { n: 13, x: 230.5, y: 44.5 },
-  { n: 12, x: 270.5, y: 44.5 }, { n: 11, x: 309.5, y: 44.5 }, { n: 21, x: 365, y: 44.5 },
-  { n: 22, x: 407, y: 44.5 }, { n: 23, x: 446.5, y: 44.5 }, { n: 24, x: 485.5, y: 44.5 },
-  { n: 25, x: 523, y: 44.5 }, { n: 26, x: 564, y: 44.5 }, { n: 27, x: 603.5, y: 44.5 },
-  { n: 28, x: 642.5, y: 44.5 },
-  { n: 48, x: 29, y: 326.5 }, { n: 47, x: 73.5, y: 326.5 }, { n: 46, x: 113.5, y: 326.5 },
-  { n: 45, x: 155.5, y: 326.5 }, { n: 44, x: 198.5, y: 326.5 }, { n: 43, x: 237.5, y: 326.5 },
-  { n: 42, x: 277, y: 326.5 }, { n: 41, x: 313, y: 326.5 }, { n: 31, x: 353.5, y: 326.5 },
-  { n: 32, x: 389.5, y: 326.5 }, { n: 33, x: 427, y: 326.5 }, { n: 34, x: 464.5, y: 326.5 },
-  { n: 35, x: 501.5, y: 326.5 }, { n: 36, x: 543.5, y: 326.5 }, { n: 37, x: 591.5, y: 326.5 },
-  { n: 38, x: 638.5, y: 326.5 },
+const SHAPES: { value: string; label: string }[] = [
+  { value: "NONE", label: "Nenhuma" },
+  { value: "X", label: "X (Ausente)" },
+  { value: "DOT", label: "Ponto (Cárie)" },
 ]
 
 export function OdontogramPage({
@@ -59,16 +43,12 @@ export function OdontogramPage({
   const [patientId, setPatientId] = useState(initialPatientId ?? "")
   const [conditions, setConditions] = useState<ToothCond[]>([])
   const [selectedTooth, setSelectedTooth] = useState<number | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [conditionForm, setConditionForm] = useState({ condition: "CARIE", surface: "WHOLE", note: "" })
+  const [conditionForm, setConditionForm] = useState({ condition: "CARIE", surface: "WHOLE", shape: "NONE", color: "", note: "" })
 
   const load = async (pid: string) => {
-    if (!pid) {
-      setConditions([])
-      return
-    }
-    setLoading(true)
+    if (!pid) return
     try {
       const res = await fetch(`/api/app/odontogram?patientId=${pid}`)
       const data = await res.json()
@@ -80,7 +60,6 @@ export function OdontogramPage({
 
   useEffect(() => {
     load(patientId)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patientId])
 
   const condFor = (tooth: number) => conditions.find((c) => c.toothNumber === tooth)
@@ -95,6 +74,8 @@ export function OdontogramPage({
     setConditionForm({
       condition: existing?.condition ?? "CARIE",
       surface: existing?.surface ?? "WHOLE",
+      shape: existing?.shape ?? "NONE",
+      color: existing?.color ?? "",
       note: existing?.note ?? "",
     })
   }
@@ -103,15 +84,32 @@ export function OdontogramPage({
     if (!patientId || selectedTooth === null) return
     setSaving(true)
     try {
-      const res = await fetch("/api/app/odontogram", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ patientId, toothNumber: selectedTooth, ...conditionForm }),
-      })
+      const existing = condFor(selectedTooth)
+      const payload = {
+        patientId,
+        toothNumber: selectedTooth,
+        condition: conditionForm.condition,
+        surface: conditionForm.surface,
+        shape: conditionForm.shape,
+        color: conditionForm.color,
+        note: conditionForm.note,
+      }
+      const res = existing
+        ? await fetch(`/api/app/odontogram/${existing.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          })
+        : await fetch("/api/app/odontogram", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Erro ao salvar.")
-      toast("Condição registrada.", "success")
+      toast(existing ? "Condição atualizada." : "Condição registrada.", "success")
       setSelectedTooth(null)
+      setLoading(true)
       load(patientId)
       router.refresh()
     } catch (e) {
@@ -128,34 +126,11 @@ export function OdontogramPage({
       if (!res.ok) throw new Error(data.error || "Erro.")
       toast("Condição removida.", "info")
       setSelectedTooth(null)
+      setLoading(true)
       load(patientId)
     } catch (e) {
       toast((e as Error).message, "error")
     }
-  }
-
-  const Tooth = ({ n, x, y }: { n: number; x: number; y: number }) => {
-    const c = condFor(n)
-    const cond = c ? COND_MAP[c.condition] : null
-    const isSelected = selectedTooth === n
-    return (
-      <button
-        onClick={() => selectTooth(n)}
-        title={`Dente ${n}${c ? ` · ${c.condition}` : ""}`}
-        className={`group absolute flex h-[30px] w-[30px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 text-[10px] font-bold transition-all hover:z-10 hover:scale-125 ${
-          cond
-            ? `${cond.bg} ${cond.color}`
-            : isSelected
-              ? "border-sky-400 bg-sky-500/25 text-sky-200"
-              : "border-[#23345a]/50 bg-slate-900/25 text-slate-300"
-        }`}
-        style={{ left: `${(x / ODONTO_W) * 100}%`, top: `${(y / ODONTO_H) * 100}%` }}
-      >
-        <span className={`transition ${cond || isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
-          {n}
-        </span>
-      </button>
-    )
   }
 
   return (
@@ -170,7 +145,7 @@ export function OdontogramPage({
       <Card className="anim-fade-up">
         <CardBody>
           <Field label="Paciente">
-            <Select value={patientId} onChange={(e) => { setPatientId(e.target.value); setSelectedTooth(null) }}>
+            <Select value={patientId} onChange={(e) => { setPatientId(e.target.value); setSelectedTooth(null); setConditions([]) }}>
               <option value="">Selecione o paciente</option>
               {patients.map((p) => <option key={p.id} value={p.id}>{p.fullName}</option>)}
             </Select>
@@ -198,25 +173,22 @@ export function OdontogramPage({
                 </div>
               ) : (
                 <div className="space-y-6">
-                  <div className="relative mx-auto w-full max-w-3xl">
-                    <img
-                      src={ODONTO_SRC}
-                      alt="Odontograma"
-                      draggable={false}
-                      className="w-full select-none rounded-xl"
+                  <div className="relative mx-auto w-full max-w-5xl">
+                    <OdontogramArch
+                      conditions={conditions}
+                      selectedTooth={selectedTooth}
+                      onSelect={selectTooth}
                     />
-                    {SPOTS.map((spot) => (
-                      <Tooth key={spot.n} n={spot.n} x={spot.x} y={spot.y} />
-                    ))}
                   </div>
                   <p className="text-center text-[11px] text-slate-600">
-                    Passe o mouse sobre um dente e clique para registrar a condição.
+                    Passe o mouse sobre um dente e clique para registrar a condição. Use X para marcar dente ausente ou Ponto para marcar cárie, com a cor da lesão.
                   </p>
                 </div>
               )}
               <div className="mt-6 flex flex-wrap gap-2">
                 {CONDITIONS.map((c) => (
                   <span key={c.value} className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-medium ${c.bg} ${c.color}`}>
+                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: c.hex }} />
                     {c.label}
                   </span>
                 ))}
@@ -242,7 +214,13 @@ export function OdontogramPage({
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field label="Condição">
-                    <Select value={conditionForm.condition} onChange={(e) => setConditionForm({ ...conditionForm, condition: e.target.value })}>
+                    <Select
+                      value={conditionForm.condition}
+                      onChange={(e) => {
+                        const condition = e.target.value
+                        setConditionForm((f) => ({ ...f, condition, color: CONDITION_HEX[condition] ?? f.color }))
+                      }}
+                    >
                       {CONDITIONS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
                     </Select>
                   </Field>
@@ -256,6 +234,33 @@ export function OdontogramPage({
                       <option value="D">Distal</option>
                       <option value="P">Palatina</option>
                     </Select>
+                  </Field>
+                </div>
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <Field label="Marca no dente (procedimento)">
+                    <Select value={conditionForm.shape} onChange={(e) => setConditionForm({ ...conditionForm, shape: e.target.value })}>
+                      {SHAPES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+                    </Select>
+                  </Field>
+                  <Field label="Cor da marca (baseada na lesão)">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {CONDITIONS.map((c) => (
+                        <button
+                          key={c.value}
+                          type="button"
+                          title={c.label}
+                          onClick={() => setConditionForm({ ...conditionForm, color: c.hex })}
+                          className="h-7 w-7 rounded-full border-2 transition hover:scale-110"
+                          style={{
+                            backgroundColor: c.hex,
+                            borderColor: conditionForm.color === c.hex ? "#ffffff" : "rgba(255,255,255,0.15)",
+                          }}
+                        />
+                      ))}
+                      {conditionForm.color && (
+                        <span className="text-[11px] text-slate-500">#{conditionForm.color.replace("#", "")}</span>
+                      )}
+                    </div>
                   </Field>
                 </div>
                 <div className="mt-4">

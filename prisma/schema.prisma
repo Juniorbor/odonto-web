@@ -537,6 +537,8 @@ model ToothCondition {
   toothNumber    Int
   surface        String
   condition      String
+  shape          String   @default("NONE")
+  color          String?
   note           String?
   professionalId String?
   professional   Professional? @relation(fields: [professionalId], references: [id], onDelete: SetNull)

@@ -1,23 +1,20 @@
 import Link from "next/link"
-import { requireSession, hasModule } from "@/lib/auth"
+import { requireSession } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import {
   Users,
   Stethoscope,
-  Briefcase,
-  Wallet,
-  AlertCircle,
   ArrowRight,
   Activity,
   Clock,
 } from "lucide-react"
 import { Card, CardBody } from "@/components/ui/card"
-import { formatCurrency, formatDate } from "@/lib/utils"
+import { formatDate } from "@/lib/utils"
 
 export default async function AppDashboard() {
   const ctx = await requireSession()
 
-  const [patientCount, activePatients, appointmentsToday, appointmentsMonth, productionMonth, entriesMonth, pendingExpenses] =
+  const [patientCount, activePatients, appointmentsToday, appointmentsMonth] =
     await Promise.all([
       ctx.isAdminMaster
         ? 0
@@ -47,37 +44,6 @@ export default async function AppDashboard() {
               },
             },
           }),
-      ctx.isAdminMaster || !hasModule(ctx, "production")
-        ? null
-        : prisma.productionRecord.aggregate({
-            where: {
-              tenantId: ctx.tenantId!,
-              date: {
-                gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
-                lt: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1),
-              },
-              status: "DONE",
-            },
-            _sum: { value: true },
-            _count: true,
-          }),
-      ctx.isAdminMaster || !hasModule(ctx, "finance")
-        ? null
-        : prisma.financialEntry.aggregate({
-            where: {
-              tenantId: ctx.tenantId!,
-              date: {
-                gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
-                lt: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1),
-              },
-            },
-            _sum: { value: true },
-          }),
-      ctx.isAdminMaster || !hasModule(ctx, "finance")
-        ? null
-        : prisma.expense.count({
-            where: { tenantId: ctx.tenantId!, status: { in: ["PENDING", "OVERDUE"] } },
-          }),
     ])
 
   const stats = [
@@ -85,9 +51,6 @@ export default async function AppDashboard() {
     { label: "Pacientes ativos", value: activePatients, icon: <Activity className="h-5 w-5" />, tone: "text-emerald-400 bg-emerald-500/10 border-emerald-500/25" },
     { label: "Atendimentos hoje", value: appointmentsToday, icon: <Clock className="h-5 w-5" />, tone: "text-cyan-400 bg-cyan-500/10 border-cyan-500/25" },
     { label: "Atendimentos no mês", value: appointmentsMonth, icon: <Stethoscope className="h-5 w-5" />, tone: "text-indigo-400 bg-indigo-500/10 border-indigo-500/25" },
-    { label: "Produção no mês", value: productionMonth ? formatCurrency(productionMonth._sum.value?.toString()) : "—", icon: <Briefcase className="h-5 w-5" />, tone: "text-violet-400 bg-violet-500/10 border-violet-500/25" },
-    { label: "Receita do mês", value: entriesMonth ? formatCurrency(entriesMonth._sum.value?.toString()) : "—", icon: <Wallet className="h-5 w-5" />, tone: "text-emerald-400 bg-emerald-500/10 border-emerald-500/25" },
-    { label: "Contas pendentes", value: pendingExpenses ?? "—", icon: <AlertCircle className="h-5 w-5" />, tone: "text-amber-400 bg-amber-500/10 border-amber-500/25" },
   ]
 
   const recentPatients = ctx.isAdminMaster

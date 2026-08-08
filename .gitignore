@@ -42,3 +42,6 @@ next-env.d.ts
 
 # runtime storage (uploaded files)
 /storage
+
+# local session notes (contains local infra credentials)
+/session.md

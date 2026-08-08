@@ -9,6 +9,8 @@ const conditionSchema = z.object({
   toothNumber: z.coerce.number().int().min(1).max(48),
   surface: z.string().max(5).default("WHOLE"),
   condition: z.enum(["CARIE", "OBTURADO", "COROA", "EXTRAIDO", "FRATURADO", "RAIZ", "IMPLANTE", "SAUDAVEL"]),
+  shape: z.enum(["NONE", "X", "DOT"]).default("NONE"),
+  color: z.string().max(20).optional().or(z.literal("")),
   note: z.string().max(500).optional().or(z.literal("")),
 })
 
@@ -38,6 +40,8 @@ export async function GET(req: NextRequest) {
             toothNumber: c.toothNumber,
             surface: c.surface,
             condition: c.condition,
+            shape: c.shape,
+            color: c.color,
             note: c.note,
             createdAt: c.createdAt.toISOString(),
           })),
@@ -82,6 +86,8 @@ export async function POST(req: NextRequest) {
         toothNumber: d.toothNumber,
         surface: d.surface,
         condition: d.condition,
+        shape: d.shape,
+        color: d.color || undefined,
         note: d.note || undefined,
         userId: ctx.user.id,
       },

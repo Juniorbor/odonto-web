@@ -10,6 +10,7 @@ import { Modal, ConfirmDialog } from "@/components/ui/modal"
 import { useToast } from "@/components/ui/toaster"
 import { EmptyState } from "@/components/ui/feedback"
 import { formatCurrency, formatDate, monthKey } from "@/lib/utils"
+import { FinanceCharts } from "./finance-charts"
 
 type FinCat = { id: string; name: string; type: string }
 type FinEntry = {
@@ -224,6 +225,13 @@ export function FinancePage({ categories }: { categories: FinCat[] }) {
 
       <div className="anim-fade-up">
         <Input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="w-auto" />
+      </div>
+
+      <div className="anim-fade-up rounded-2xl border border-[#16213a] bg-[#0a1120]/40 p-4 sm:p-5">
+        <h2 className="mb-4 text-sm font-bold uppercase tracking-wider text-slate-400">
+          Indicadores <span className="text-gradient">gráficos</span>
+        </h2>
+        <FinanceCharts />
       </div>
 
       {loading ? (

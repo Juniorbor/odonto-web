@@ -10,6 +10,7 @@ import { Modal, ConfirmDialog } from "@/components/ui/modal"
 import { useToast } from "@/components/ui/toaster"
 import { EmptyState } from "@/components/ui/feedback"
 import { formatCurrency, formatDate, monthKey } from "@/lib/utils"
+import { ProductionCharts } from "./production-charts"
 
 type ProdCat = { id: string; name: string; type: string; price: string | null }
 type ProdRow = {
@@ -221,6 +222,13 @@ export function ProductionPage({
 
       <div className="anim-fade-up flex flex-wrap items-center gap-3">
         <Input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="w-auto" />
+      </div>
+
+      <div className="anim-fade-up rounded-2xl border border-[#16213a] bg-[#0a1120]/40 p-4 sm:p-5">
+        <h2 className="mb-4 text-sm font-bold uppercase tracking-wider text-slate-400">
+          Indicadores <span className="text-gradient">gráficos</span>
+        </h2>
+        <ProductionCharts />
       </div>
 
       <div className="anim-fade-up stagger space-y-4">
