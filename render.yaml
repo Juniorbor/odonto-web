@@ -6,7 +6,7 @@ services:
     name: odonto-web
     runtime: node
     plan: free
-    buildCommand: npm ci && npx prisma generate && npm run build
+    buildCommand: npm ci && npx prisma generate && npx prisma migrate deploy && npx prisma db seed && npm run build
     startCommand: npm start
     healthCheckPath: /login
     envVars:
@@ -20,5 +20,8 @@ services:
         generateValue: true
       - key: NEXT_PUBLIC_APP_NAME
         value: OdontoCloud
+      - key: NEXT_PUBLIC_APP_URL
+        sync: false
+        value: https://seudominio.com.br
       - key: STORAGE_DIR
         value: /var/data/storage
