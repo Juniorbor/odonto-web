@@ -1,36 +1,53 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# OdontoCloud
 
-## Getting Started
+Sistema de gestão odontológica completo: pacientes, anamnese, atendimentos, odontograma, radiografias, fotografias, documentos, produção, financeiro, agenda, relatórios e IA.
 
-First, run the development server:
+Stack: Next.js 16 (App Router) + Prisma + PostgreSQL + Tailwind CSS 4.
+
+## Desenvolvimento local
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Abrir [http://localhost:3000](http://localhost:3000). As variáveis de ambiente ficam no arquivo `.env` (copie de `.env.example` se existir).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Criar o banco e popular dados iniciais:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npx prisma migrate dev
+npx prisma db seed
+```
 
-## Learn More
+Login inicial: `admin@odontoweb.com.br` / `Admin@2026` (troque a senha ao entrar).
 
-To learn more about Next.js, take a look at the following resources:
+## Publicação
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+O deploy é feito pelo **Render** usando o `render.yaml` (Blueprints):
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. Crie conta em [render.com](https://render.com) e conecte pelo GitHub.
+2. **New + → Blueprint** → selecione o repositório `odonto-web`.
+3. O blueprint cria automaticamente o web service + PostgreSQL (planos gratuitos).
+4. Aguarde o build (executa migrations e seed automaticamente).
 
-## Deploy on Vercel
+### Domínio próprio (apontando o domínio da HostGator)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1. No painel do Render, em Settings → Custom Domains, adicione `seudominio.com.br` e `www.seudominio.com.br`. Anote o IP e o nome mostrados.
+2. No cPanel da HostGator → Domains → Zone Editor:
+   - Registro `A` com nome `@` → o IP do Render.
+   - Registro `CNAME` com nome `www` → `odonto-web.onrender.com`.
+3. Após propagar, o SSL (HTTPS) é emitido automaticamente pelo Render.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Variáveis de ambiente
+
+| Variável | Obrigatória | Descrição |
+| --- | --- | --- |
+| `DATABASE_URL` | Sim | Conexão PostgreSQL (criada pelo blueprint) |
+| `JWT_SECRET` | Sim | Chave de assinatura dos tokens (gerada pelo blueprint) |
+| `NEXT_PUBLIC_APP_NAME` | Não | Nome exibido do sistema |
+| `NEXT_PUBLIC_APP_URL` | Não | URL pública (usada em e-mails de "esqueci a senha") |
+| `OPENAI_API_KEY` | Não | Habilita o assistente de IA (caso contrário exibe aviso) |
+| `STORAGE_DIR` | Sim | Diretório dos arquivos enviados |
+
+> ⚠️ No plano gratuito o serviço "dorme" após ~15 min sem uso e o diretório de arquivos é temporário entre deploys. Para persistência e ausência de sleep, use o plano Starter ou um disco persistente (pago).

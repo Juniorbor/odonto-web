@@ -4,7 +4,7 @@ import fsp from "fs/promises"
 import path from "path"
 import crypto from "crypto"
 
-const ROOT = path.join(process.cwd(), process.env.STORAGE_DIR || "storage")
+const ROOT = path.join(/*turbopackIgnore: true*/ process.cwd(), process.env.STORAGE_DIR || "storage")
 
 export const ALLOWED_IMAGE_TYPES = new Set([
   "image/jpeg",
