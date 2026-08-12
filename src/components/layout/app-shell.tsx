@@ -135,10 +135,7 @@ export function AppShell({
 
   const hasMod = (item: NavItem) => {
     if (item.clinicOnly && isAdminMaster && !impersonating) return false
-    if (isAdminMaster) {
-      if (impersonating) return true
-      return !!item.adminSafe || !item.module
-    }
+    if (isAdminMaster) return true
     if (!item.module) return true
     return modules.includes(item.module)
   }

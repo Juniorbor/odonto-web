@@ -40,7 +40,7 @@ export default function LoginPage() {
         return
       }
       toast(`Bem-vindo(a), ${data.user.name.split(" ")[0]}!`, "success")
-      router.push(data.isAdminMaster ? "/admin" : "/app")
+      router.push("/app")
       router.refresh()
     } catch {
       setError("Erro de conexão. Tente novamente.")
