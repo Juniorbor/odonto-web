@@ -1,0 +1,30 @@
+{
+  "name": "Odontoweb — Plataforma Odontológica Profissional",
+  "short_name": "Odontoweb",
+  "description": "Sistema de gestão odontológica completo: pacientes, anamnese, odontograma, radiografias, produção e financeiro.",
+  "start_url": "/app",
+  "display": "standalone",
+  "background_color": "#05070d",
+  "theme_color": "#0ea5e9",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

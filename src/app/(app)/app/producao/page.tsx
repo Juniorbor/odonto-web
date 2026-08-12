@@ -12,8 +12,8 @@ export default async function ProducaoIndex() {
     prisma.patient.findMany({
       where: { clinicId: ctx.clinicId ?? "none", active: true },
       orderBy: { fullName: "asc" },
-      select: { id: true, fullName: true },
-      take: 200,
+      select: { id: true, fullName: true, city: true },
+      take: 500,
     }),
     prisma.productionCategory.findMany({
       where: { tenantId: ctx.tenantId, active: true },

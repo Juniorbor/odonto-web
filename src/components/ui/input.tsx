@@ -6,7 +6,7 @@ export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttribute
     <input
       ref={ref}
       className={cn(
-        "h-10 w-full rounded-xl border border-[#22335470] bg-[#0b1120] px-3.5 text-sm text-slate-100 placeholder:text-slate-500",
+        "h-10 w-full rounded-xl border border-[#22335470] bg-[#0b1120] px-3.5 text-base sm:text-sm text-slate-100 placeholder:text-slate-500",
         "transition-all focus:border-sky-500/70 focus:outline-none focus:ring-2 focus:ring-sky-500/20",
         "disabled:cursor-not-allowed disabled:opacity-50",
         className,
@@ -22,7 +22,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, React.TextareaHTML
     <textarea
       ref={ref}
       className={cn(
-        "w-full rounded-xl border border-[#23345a70] bg-[#0b1120] px-3.5 py-2.5 text-sm text-slate-100 placeholder:text-slate-600",
+        "w-full rounded-xl border border-[#23345a70] bg-[#0b1120] px-3.5 py-2.5 text-base sm:text-sm text-slate-100 placeholder:text-slate-600",
         "transition-all focus:border-sky-500/70 focus:outline-none focus:ring-2 focus:ring-sky-500/20",
         className,
       )}
@@ -37,7 +37,7 @@ export const Select = React.forwardRef<HTMLSelectElement, React.SelectHTMLAttrib
     <select
       ref={ref}
       className={cn(
-        "h-10 w-full rounded-xl border border-[#23345a70] bg-[#0b1120] px-3 text-sm text-slate-100",
+        "h-10 w-full rounded-xl border border-[#23345a70] bg-[#0b1120] px-3 text-base sm:text-sm text-slate-100",
         "transition-all focus:border-sky-500/70 focus:outline-none focus:ring-2 focus:ring-sky-500/20",
         "disabled:cursor-not-allowed disabled:opacity-50 [&>option]:bg-[#0b1120]",
         className,
@@ -48,6 +48,7 @@ export const Select = React.forwardRef<HTMLSelectElement, React.SelectHTMLAttrib
     </select>
   ),
 )
+
 Select.displayName = "Select"
 
 export function Field({

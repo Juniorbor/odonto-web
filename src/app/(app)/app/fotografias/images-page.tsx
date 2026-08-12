@@ -1,8 +1,8 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useSearchParams } from "next/navigation"
-import { Camera, CalendarDays, FileUp, Trash2, Stethoscope, Pencil, Link2 } from "lucide-react"
+import { Camera, CalendarDays, Trash2, Stethoscope, Pencil, Link2 } from "lucide-react"
 import { Card, CardBody } from "@/components/ui/card"
 import { EmptyState } from "@/components/ui/feedback"
 import { Button } from "@/components/ui/button"
@@ -21,6 +21,7 @@ const CATEGORY_TABS = [
 
 type ImageRow = {
   id: string
+  kind?: "image" | "radiograph"
   patientId: string
   patient: { id: string; fullName: string }
   category: string
@@ -46,12 +47,22 @@ export function ImagesPage({ patients }: { patients: { id: string; fullName: str
   const [editing, setEditing] = useState<ImageRow | null>(null)
   const [deleting, setDeleting] = useState<ImageRow | null>(null)
   const [saving, setSaving] = useState(false)
+  const [capturing, setCapturing] = useState(false)
+  const captureInputRef = useRef<HTMLInputElement>(null)
 
   const [file, setFile] = useState<File | null>(null)
-  const [formPatient, setFormPatient] = useState(searchParams.get("patientId") || "")
+  const [formPatient, setFormPatient] = useState("")
   const [formCategory, setFormCategory] = useState("INTRAORAL")
   const [formLabel, setFormLabel] = useState("")
   const [formNotes, setFormNotes] = useState("")
+
+  const openUpload = () => {
+    setUploadOpen(true)
+    setFile(null)
+    setFormPatient(patientFilter !== "all" ? patientFilter : searchParams.get("patientId") || "")
+    setFormLabel("")
+    setFormNotes("")
+  }
   const [formTakenAt, setFormTakenAt] = useState(new Date().toISOString().slice(0, 10))
 
   const [editCategory, setEditCategory] = useState("INTRAORAL")
@@ -107,6 +118,35 @@ export function ImagesPage({ patients }: { patients: { id: string; fullName: str
     }
   }
 
+  const onCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ""
+    if (!file) return
+    const patientId = patientFilter !== "all" ? patientFilter : searchParams.get("patientId") || ""
+    if (!patientId) {
+      toast("Selecione o paciente no filtro acima antes de tirar a foto.", "error")
+      return
+    }
+    setCapturing(true)
+    try {
+      const fd = new FormData()
+      fd.append("file", file)
+      fd.append("patientId", patientId)
+      fd.append("category", categoryFilter === "EXTRAORAL" ? "EXTRAORAL" : "INTRAORAL")
+      fd.append("takenAt", new Date().toISOString().slice(0, 10))
+      const res = await fetch("/api/app/images", { method: "POST", body: fd })
+      const data = await res.json()
+      if (!res.ok) {
+        toast(data?.error ?? "Erro ao enviar a foto.", "error")
+        return
+      }
+      toast("Foto tirada e enviada com sucesso.", "success")
+      load(patientFilter, categoryFilter)
+    } finally {
+      setCapturing(false)
+    }
+  }
+
   const onEdit = async () => {
     if (!editing || saving) return
     setSaving(true)
@@ -135,9 +175,10 @@ export function ImagesPage({ patients }: { patients: { id: string; fullName: str
 
   const onDelete = async () => {
     if (!deleting) return
-    const res = await fetch(`/api/app/images/${deleting.id}`, { method: "DELETE" })
+    const url = deleting.kind === "radiograph" ? `/api/app/radiographs/${deleting.id}` : `/api/app/images/${deleting.id}`
+    const res = await fetch(url, { method: "DELETE" })
     if (res.ok) {
-      toast("Fotografia removida.", "success")
+      toast(deleting.kind === "radiograph" ? "Radiografia removida." : "Fotografia removida.", "success")
       setDeleting(null)
       load(patientFilter, categoryFilter)
     } else {
@@ -163,9 +204,29 @@ export function ImagesPage({ patients }: { patients: { id: string; fullName: str
           </h1>
           <p className="mt-1 text-sm text-slate-500">Fotos clínicas extra e intrabucais dos pacientes.</p>
         </div>
-        <Button onClick={() => setUploadOpen(true)} className="gap-1.5">
-          <Camera className="h-4 w-4" /> Enviar fotografia
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => captureInputRef.current?.click()}
+            loading={capturing}
+            disabled={patientFilter === "all"}
+            title={patientFilter === "all" ? "Selecione um paciente no filtro para tirar foto" : "Tirar foto com a câmera"}
+            className="gap-1.5"
+          >
+            <Camera className="h-4 w-4" /> Tirar foto
+          </Button>
+          <Button onClick={openUpload} className="gap-1.5">
+            <Camera className="h-4 w-4" /> Enviar fotografia
+          </Button>
+        </div>
+        <input
+          ref={captureInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={onCapture}
+        />
       </div>
 
       <div className="anim-fade-up flex flex-wrap items-center gap-3">
@@ -214,11 +275,6 @@ export function ImagesPage({ patients }: { patients: { id: string; fullName: str
               icon="inbox"
               title="Nenhuma fotografia"
               description="Envie a primeira foto clínica de um paciente para começar."
-              action={
-                <Button onClick={() => setUploadOpen(true)} className="gap-1.5">
-                  <Camera className="h-4 w-4" /> Enviar fotografia
-                </Button>
-              }
             />
           </CardBody>
         </Card>
@@ -238,18 +294,25 @@ export function ImagesPage({ patients }: { patients: { id: string; fullName: str
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold text-slate-100">
-                      {img.label || (img.category === "EXTRAORAL" ? "Foto extrabucal" : "Foto intrabucal")}
+                      {img.label ||
+                        (img.kind === "radiograph"
+                          ? "Radiografia"
+                          : img.category === "EXTRAORAL"
+                            ? "Foto extrabucal"
+                            : "Foto intrabucal")}
                     </p>
                     <p className="mt-0.5 truncate text-xs text-slate-500">{img.patient.fullName}</p>
                   </div>
                   <div className="flex shrink-0 items-center gap-0.5">
-                    <button
-                      onClick={() => openEdit(img)}
-                      className="rounded-lg p-1.5 text-slate-600 transition hover:bg-sky-500/10 hover:text-sky-300"
-                      aria-label="Editar"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </button>
+                    {img.kind !== "radiograph" && (
+                      <button
+                        onClick={() => openEdit(img)}
+                        className="rounded-lg p-1.5 text-slate-600 transition hover:bg-sky-500/10 hover:text-sky-300"
+                        aria-label="Editar"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                    )}
                     <button
                       onClick={() => setDeleting(img)}
                       className="rounded-lg p-1.5 text-slate-600 transition hover:bg-rose-500/10 hover:text-rose-300"
@@ -262,8 +325,8 @@ export function ImagesPage({ patients }: { patients: { id: string; fullName: str
                 <p className="mt-2 inline-flex items-center gap-1 text-[11px] text-slate-600">
                   <CalendarDays className="h-3 w-3" /> {formatDate(img.takenAt)}
                   <span className="mx-1">•</span>
-                  <span className={img.category === "EXTRAORAL" ? "text-cyan-400" : "text-violet-400"}>
-                    {img.category === "EXTRAORAL" ? "Extrabucal" : "Intrabucal"}
+                  <span className={img.kind === "radiograph" ? "text-sky-400" : img.category === "EXTRAORAL" ? "text-cyan-400" : "text-violet-400"}>
+                    {img.kind === "radiograph" ? "Radiografia" : img.category === "EXTRAORAL" ? "Extrabucal" : "Intrabucal"}
                   </span>
                 </p>
               </CardBody>
@@ -326,6 +389,15 @@ export function ImagesPage({ patients }: { patients: { id: string; fullName: str
             </Field>
           </div>
 
+          {formPatient && (
+            <div className="flex items-center gap-2 rounded-xl border border-sky-500/30 bg-sky-500/10 px-3.5 py-2.5 text-sm text-sky-200">
+              <Camera className="h-4 w-4 shrink-0 text-sky-400" />
+              <span>
+                Enviando para: <strong>{patients.find((p) => p.id === formPatient)?.fullName}</strong>
+              </span>
+            </div>
+          )}
+
           <Field label="Identificação (opcional)">
             <Input
               value={formLabel}
@@ -370,7 +442,7 @@ export function ImagesPage({ patients }: { patients: { id: string; fullName: str
       <Modal
         open={!!viewing}
         onClose={() => setViewing(null)}
-        title={viewing?.label || "Fotografia"}
+        title={viewing?.label || (viewing?.kind === "radiograph" ? "Radiografia" : "Fotografia")}
         subtitle={viewing ? `${viewing.patient.fullName} • ${formatDate(viewing.takenAt)}` : undefined}
         size="xl"
         footer={
@@ -399,7 +471,11 @@ export function ImagesPage({ patients }: { patients: { id: string; fullName: str
               <div>
                 <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Categoria</p>
                 <p className="mt-1 text-sm text-slate-200">
-                  {viewing.category === "EXTRAORAL" ? "Extrabucal" : "Intrabucal"}
+                  {viewing.kind === "radiograph"
+                    ? "Radiografia (extrabucal)"
+                    : viewing.category === "EXTRAORAL"
+                      ? "Extrabucal"
+                      : "Intrabucal"}
                 </p>
               </div>
               <div>
@@ -453,8 +529,12 @@ export function ImagesPage({ patients }: { patients: { id: string; fullName: str
         open={!!deleting}
         onClose={() => setDeleting(null)}
         onConfirm={onDelete}
-        title="Excluir fotografia"
-        message={`Remover a foto de ${deleting?.patient.fullName ?? "este paciente"}? Esta ação não pode ser desfeita.`}
+        title={deleting?.kind === "radiograph" ? "Excluir radiografia" : "Excluir fotografia"}
+        message={
+          deleting?.kind === "radiograph"
+            ? `Remover a radiografia de ${deleting?.patient.fullName ?? "este paciente"}? Esta ação não pode ser desfeita.`
+            : `Remover a foto de ${deleting?.patient.fullName ?? "este paciente"}? Esta ação não pode ser desfeita.`
+        }
         confirmLabel="Excluir"
       />
     </div>

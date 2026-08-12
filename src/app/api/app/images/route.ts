@@ -40,9 +40,46 @@ export async function GET(req: NextRequest) {
     },
   })
 
-  return NextResponse.json({
-    images: images.map((i) => ({ ...i, takenAt: i.takenAt.toISOString(), url: `/api/app/images/${i.id}/file` })),
-  })
+  const includeRadiographs = category === undefined || category === "EXTRAORAL"
+  const radiographs = includeRadiographs
+    ? await prisma.radiograph.findMany({
+        where: {
+          clinicId: ctx.clinicId,
+          ...(patientId ? { patientId } : {}),
+        },
+        orderBy: { takenAt: "desc" },
+        select: {
+          id: true,
+          patientId: true,
+          patient: { select: { id: true, fullName: true } },
+          examType: true,
+          label: true,
+          mimeType: true,
+          sizeBytes: true,
+          takenAt: true,
+          notes: true,
+        },
+      })
+    : []
+
+  const merged = [
+    ...images.map((i) => ({
+      kind: "image" as const,
+      ...i,
+      takenAt: i.takenAt.toISOString(),
+      url: `/api/app/images/${i.id}/file`,
+    })),
+    ...radiographs.map((r) => ({
+      kind: "radiograph" as const,
+      ...r,
+      category: "EXTRAORAL" as const,
+      label: r.label || r.examType,
+      takenAt: r.takenAt.toISOString(),
+      url: `/api/app/radiographs/${r.id}/file`,
+    })),
+  ].sort((a, b) => (a.takenAt < b.takenAt ? 1 : a.takenAt > b.takenAt ? -1 : 0))
+
+  return NextResponse.json({ images: merged })
 }
 
 export async function POST(req: NextRequest) {

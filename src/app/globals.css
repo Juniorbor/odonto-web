@@ -54,6 +54,51 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* ---------- Prevenção de Zoom no iOS em Inputs ---------- */
+@media screen and (max-width: 767px) {
+  input[type="text"],
+  input[type="number"],
+  input[type="email"],
+  input[type="password"],
+  input[type="search"],
+  input[type="tel"],
+  input[type="url"],
+  input[type="date"],
+  input[type="time"],
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* ---------- Safe Area Insets (iPhones com Notch) ---------- */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 16px);
+}
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* ---------- Tabela Rolável em Telas Menores ---------- */
+.scrollable-table {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ---------- Fontes globais em branco (melhor legibilidade) ---------- */
+body,
+body :not(svg, svg *) {
+  color: #ffffff !important;
+}
+body .text-gradient {
+  color: transparent !important;
+}
+body ::placeholder {
+  color: #ffffff !important;
+}
+
+
 /* ---------- Scrollbar ---------- */
 ::-webkit-scrollbar {
   width: 9px;
@@ -282,78 +327,4 @@ g:hover > .odontogram-tooth-img,
 .odontogram-tooth-img:hover {
   transform: translateY(-6px);
   filter: brightness(1.12) drop-shadow(0 4px 6px rgba(2, 6, 23, 0.35));
-}
-
-/* ---------- Radiografia panorâmica (login) ---------- */
-
-@keyframes pano-breathe {
-  0%,
-  100% {
-    transform: rotateX(5deg) rotateY(-7deg) translateY(0);
-  }
-  50% {
-    transform: rotateX(3.5deg) rotateY(-5deg) translateY(-8px);
-  }
-}
-
-@keyframes pano-scan {
-  0% {
-    left: -22%;
-    opacity: 0;
-  }
-  12% {
-    opacity: 0.55;
-  }
-  88% {
-    opacity: 0.55;
-  }
-  100% {
-    left: 108%;
-    opacity: 0;
-  }
-}
-
-@keyframes pano-glow-pulse {
-  0%,
-  100% {
-    opacity: 0.55;
-    transform: translate(-50%, -50%) scale(1);
-  }
-  50% {
-    opacity: 0.95;
-    transform: translate(-50%, -50%) scale(1.12);
-  }
-}
-
-@keyframes pano-num-drift {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-14px);
-  }
-}
-
-.pano-3d {
-  transform-style: preserve-3d;
-  animation: pano-breathe 16s ease-in-out infinite;
-}
-
-.pano-stage {
-  container-type: inline-size;
-  transform-style: preserve-3d;
-  backface-visibility: hidden;
-}
-
-.pano-scan {
-  animation: pano-scan 14s linear infinite;
-}
-
-.pano-glow {
-  animation: pano-glow-pulse 5s ease-in-out infinite;
-}
-
-.pano-num {
-  animation: pano-num-drift 18s ease-in-out infinite;
 }

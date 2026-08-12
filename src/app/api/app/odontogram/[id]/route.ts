@@ -8,6 +8,7 @@ const patchSchema = z.object({
   condition: z.enum(["CARIE", "OBTURADO", "COROA", "EXTRAIDO", "FRATURADO", "RAIZ", "IMPLANTE", "SAUDAVEL"]).optional(),
   surface: z.string().max(5).optional(),
   shape: z.enum(["NONE", "X", "DOT"]).optional(),
+  size: z.enum(["S", "M", "L"]).optional(),
   color: z.string().max(20).optional().or(z.literal("")),
   note: z.string().max(500).optional().or(z.literal("")),
 })
@@ -36,6 +37,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         ...(d.condition ? { condition: d.condition } : {}),
         ...(d.surface !== undefined ? { surface: d.surface } : {}),
         ...(d.shape !== undefined ? { shape: d.shape } : {}),
+        ...(d.size !== undefined ? { size: d.size } : {}),
         ...(d.color !== undefined ? { color: d.color || null } : {}),
         ...(d.note !== undefined ? { note: d.note || null } : {}),
       },

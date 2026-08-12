@@ -22,12 +22,8 @@ export async function POST(req: NextRequest) {
 
   const apiKey = process.env.OPENAI_API_KEY
   if (!apiKey) {
-    return NextResponse.json({
-      ok: true,
-      response:
-        "O assistente IA ainda não foi configurado nesta instalação (OPENAI_API_KEY ausente). Assim que o administrador configurar a chave, poderei ajudar com resumos de evoluções, sugestões de diagnóstico e orientações ao paciente.",
-      simulated: true,
-    })
+    console.error("AI: OPENAI_API_KEY ausente")
+    return NextResponse.json({ error: "Assistente IA não configurado. Defina OPENAI_API_KEY no servidor." }, { status: 503 })
   }
 
   let patientContext = ""
@@ -62,16 +58,20 @@ export async function POST(req: NextRequest) {
   }
 
   const systemPrompt = [
-    "Você é o assistente clínico da Odontoweb, uma plataforma odontológica brasileira.",
-    "Responda em português do Brasil, de forma técnica e objetiva, adequada para dentistas.",
-    "Não invente informações clínicas do paciente que não estejam no contexto fornecido.",
-    "Deixe claro quando uma resposta exigir avaliação presencial do profissional.",
+    "Você é o Assistente IA da Odontoweb, um cirurgião-dentista especialista e professor universitário em Odontologia.",
+    "Atue com a precisão de um especialista: seja direto, objetivo e sem rodeios. Vá direto ao ponto da pergunta.",
+    "Responda em português do Brasil, com linguagem técnica e adequada para profissionais de Odontologia.",
+    "Quando aplicável, estruture a resposta em tópicos curtos (diagnóstico, conduta, orientação, referência) sem texto supérfluo.",
+    "Nunca invente informações clínicas do paciente ausentes no contexto fornecido.",
+    "Deixe explícito que a avaliação final exige exame clínico e o juízo profissional do dentista responsável.",
+    "Não forneça recomendações medicinais fora do escopo odontológico. Em emergências, oriente a busca imediata de atendimento.",
     patientContext ? `\nContexto do paciente:\n${patientContext}` : "",
   ].join("\n")
 
   try {
     const model = process.env.OPENAI_MODEL || "gpt-4o-mini"
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    const baseUrl = process.env.OPENAI_BASE_URL || "https://api.openai.com/v1"
+    const response = await fetch(`${baseUrl}/chat/completions`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -90,11 +90,15 @@ export async function POST(req: NextRequest) {
 
     const data = await response.json().catch(() => null)
     if (!response.ok) {
-      throw new Error(data?.error?.message || `OpenAI error ${response.status}`)
+      const msg = data?.error?.message || `OpenAI error ${response.status}`
+      if (response.status === 429 || response.status === 401) {
+        return NextResponse.json({ error: `Assistente indisponível: ${msg}` }, { status: 503 })
+      }
+      throw new Error(msg)
     }
 
     const text = data?.choices?.[0]?.message?.content
-    if (!text) throw new Error("Resposta vazia da OpenAI.")
+    if (!text) throw new Error("Resposta vazia da IA.")
 
     await prisma.aiInteraction.create({
       data: {

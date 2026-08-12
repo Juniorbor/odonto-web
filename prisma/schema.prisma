@@ -538,6 +538,7 @@ model ToothCondition {
   surface        String
   condition      String
   shape          String   @default("NONE")
+  size           String   @default("M")
   color          String?
   note           String?
   professionalId String?

@@ -9,7 +9,7 @@ import { useToast } from "@/components/ui/toaster"
 
 type AiPatient = { id: string; fullName: string }
 
-type ChatMsg = { role: "user" | "assistant"; content: string; simulated?: boolean }
+type ChatMsg = { role: "user" | "assistant"; content: string }
 
 const SUGGESTIONS = [
   "Resuma as últimas evoluções de um paciente",
@@ -39,7 +39,7 @@ export function AiPage({ patients, defaultPatientId }: { patients: AiPatient[]; 
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Erro ao consultar.")
-      setMessages((m) => [...m, { role: "assistant", content: data.response, simulated: !!data.simulated }])
+      setMessages((m) => [...m, { role: "assistant", content: data.response }])
     } catch (e) {
       toast((e as Error).message, "error")
       setMessages((m) => m.slice(0, -1))
@@ -49,7 +49,7 @@ export function AiPage({ patients, defaultPatientId }: { patients: AiPatient[]; 
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 px-4 py-8 sm:px-6">
+    <div className="mx-auto max-w-[1600px] space-y-6 px-6 py-8">
       <div className="anim-fade-up">
         <h1 className="text-2xl font-bold text-white">
           Assistente <span className="text-gradient">IA</span>
@@ -106,9 +106,6 @@ export function AiPage({ patients, defaultPatientId }: { patients: AiPatient[]; 
                   : "border-[#1c2942] bg-[#0a1120] text-slate-300"
               }`}
             >
-              {m.role === "assistant" && m.simulated && (
-                <p className="mb-1 text-[10px] uppercase tracking-wider text-amber-400">Modo demonstração (sem chave OpenAI)</p>
-              )}
               <p className="whitespace-pre-wrap">{m.content}</p>
             </div>
             {m.role === "user" && (

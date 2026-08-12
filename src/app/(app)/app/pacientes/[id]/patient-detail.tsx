@@ -126,8 +126,10 @@ export function PatientDetail({
   const [archiving, setArchiving] = useState(false)
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const [viewer, setViewer] = useState<{ id: string; label: string | null; fileUrl: string } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const captureInputRef = useRef<HTMLInputElement>(null)
   const [form, setForm] = useState({
     fullName: patient.fullName,
     socialName: patient.socialName ?? "",
@@ -187,6 +189,26 @@ export function PatientDetail({
     } finally {
       setSaving(false)
       setArchiving(false)
+    }
+  }
+
+  const capturePhoto = async (file: File) => {
+    setUploadingPhoto(true)
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      formData.append("patientId", patient.id)
+      formData.append("category", "INTRAORAL")
+      formData.append("takenAt", new Date().toISOString().slice(0, 10))
+      const res = await fetch("/api/app/images", { method: "POST", body: formData })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Erro no upload.")
+      toast("Foto enviada para a galeria. Categoria pode ser editada em Fotografias.", "success")
+      router.refresh()
+    } catch (e) {
+      toast((e as Error).message, "error")
+    } finally {
+      setUploadingPhoto(false)
     }
   }
 
@@ -302,9 +324,33 @@ export function PatientDetail({
                   </>
                 )}
                 {modules.includes("images") && (
-                  <LinkButton href={`/app/fotografias?patientId=${patient.id}`} variant="outline" size="sm" className="justify-start">
-                    <Camera className="h-4 w-4" /> Fotografias
-                  </LinkButton>
+                  <>
+                    <LinkButton href={`/app/fotografias?patientId=${patient.id}`} variant="outline" size="sm" className="justify-start">
+                      <Camera className="h-4 w-4" /> Fotografias
+                    </LinkButton>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="justify-start"
+                      onClick={() => captureInputRef.current?.click()}
+                      loading={uploadingPhoto}
+                      title="Abrir a câmera e enviar a foto direto para a galeria"
+                    >
+                      <Camera className="h-4 w-4" /> Tirar foto
+                    </Button>
+                    <input
+                      ref={captureInputRef}
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0]
+                        if (f) capturePhoto(f)
+                        e.target.value = ""
+                      }}
+                    />
+                  </>
                 )}
                 {modules.includes("ai") && (
                   <LinkButton href={`/app/ia?patientId=${patient.id}`} variant="outline" size="sm" className="justify-start">
@@ -474,13 +520,16 @@ export function PatientDetail({
               <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-100">
                 <Camera className="h-4 w-4 text-slate-500" /> Fotografias clínicas
               </h3>
+              <div className="mb-3 flex gap-2">
+                <Button size="sm" onClick={() => captureInputRef.current?.click()} loading={uploadingPhoto}>
+                  <Camera className="h-3.5 w-3.5" /> Tirar foto
+                </Button>
+                <LinkButton href={`/app/fotografias?patientId=${patient.id}`} variant="outline" size="sm">
+                  <Upload className="h-3.5 w-3.5" /> Ver galeria
+                </LinkButton>
+              </div>
               {patientImages.length === 0 ? (
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm text-slate-600">Nenhuma foto. Adicione fotos extra e intrabucais.</p>
-                  <LinkButton href={`/app/fotografias?patientId=${patient.id}`} variant="outline" size="sm">
-                    <Upload className="h-3.5 w-3.5" /> Ver galeria
-                  </LinkButton>
-                </div>
+                <p className="text-sm text-slate-600">Nenhuma foto. Toque em Tirar foto ou adicione fotos na galeria.</p>
               ) : (
                 <div className="grid grid-cols-3 gap-3 sm:grid-cols-5">
                   {patientImages.map((p) => (

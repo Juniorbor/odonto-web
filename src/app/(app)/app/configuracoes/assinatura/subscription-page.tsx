@@ -47,7 +47,7 @@ export function SubscriptionPage({
 }) {
   if (!subscription) {
     return (
-      <div className="mx-auto max-w-3xl px-4 py-8">
+      <div className="mx-auto max-w-[1600px] px-6 py-8">
         <LinkButton href="/app/configuracoes" variant="ghost" size="sm" className="gap-1.5">
           <ArrowLeft className="h-4 w-4" /> Voltar
         </LinkButton>
@@ -60,7 +60,7 @@ export function SubscriptionPage({
   const storageGB = parseInt(subscription.storageLimitBytes, 10) / 1073741824
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 px-4 py-8 sm:px-6">
+    <div className="mx-auto max-w-[1600px] space-y-6 px-6 py-8">
       <div className="anim-fade-up">
         <LinkButton href="/app/configuracoes" variant="ghost" size="sm" className="gap-1.5">
           <ArrowLeft className="h-4 w-4" /> Voltar

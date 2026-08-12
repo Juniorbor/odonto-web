@@ -2,10 +2,9 @@
 
 import { cn } from "@/lib/utils"
 
-// Modelo replicado do odontograma do OnDoctor (canvas engine original
-// de Bardur Thomsen, EPL v1.0): duas fileiras retas de dentes, cada
-// dente uma imagem PNG realista (30x90), número do dente com cantoneira,
-// checkboxes de superfície (M/D/V/L/O) e marcas vetoriais de condição.
+// Odontograma editável direto nos quadrados de superfície (M/D/V/L/O):
+// a ferramenta ativa (X = ausente, ponto = cárie com tamanho S/M/L)
+// é aplicada clicando no quadrado da superfície correspondente.
 
 export type OdontoCondition = {
   id: string
@@ -13,8 +12,18 @@ export type OdontoCondition = {
   surface: string
   condition: string
   shape?: string | null
+  size?: string | null
   color?: string | null
   note?: string | null
+}
+
+export type DrawTool = "X" | "DOT"
+export type DotSize = "S" | "M" | "L"
+
+export const DOT_SIZE_LABELS: Record<DotSize, string> = {
+  S: "Pequeno",
+  M: "Médio",
+  L: "Grande",
 }
 
 // cores do engine original
@@ -23,7 +32,7 @@ const COLOR_BLUE = "#0052ff"
 
 // cores-padrão por lesão (usadas quando a marca não tem cor explícita)
 export const CONDITION_HEX: Record<string, string> = {
-  CARIE: "#f59e0b",
+  CARIE: "#ff0000",
   OBTURADO: "#10b981",
   COROA: "#0ea5e9",
   EXTRAIDO: "#f43f5e",
@@ -43,7 +52,7 @@ const IMG_W = 40 // slot do dente (imgWidth)
 const IMG_H = 90 // slot do dente (imgHeight)
 const SEPARATOR = 210
 const PADDING = 0 // TOOTH_PADDING
-const RECT_DIMEN = 10 // tamanho dos checkboxes
+const RECT_DIMEN = 10 // tamanho dos quadrados
 
 const VIEW_W = 16 * IMG_W + 40
 const BASE = 20
@@ -63,17 +72,17 @@ function has5Surfaces(n: number): boolean {
 
 type CheckBox = { key: string; x: number; y: number; surface: string }
 
-// posições dos checkboxes seguindo create4Surfaces/create5Surfaces
+// posições dos quadrados seguindo create4Surfaces/create5Surfaces
 function buildCheckBoxes(n: number, superior: boolean): CheckBox[] {
   const x = superior ? upperX(n) : lowerX(n)
   const y = superior ? BASE : BASE + SEPARATOR
   const boxes: CheckBox[] = []
   const is5 = has5Surfaces(n)
-  // mesial/distal conforme o quadrante (correção "Adelcio" do original)
+  // mesial/distal conforme o quadrante
   let rect1Surf: string
   let rect3Surf: string
   if (superior) {
-    rect1Surf = n <= 13 ? "D" : "M" // 11-13 => D; 14-18 => D; 21-28 => M
+    rect1Surf = n <= 13 ? "D" : "M"
     if (n >= 14 && n <= 18) rect1Surf = "D"
     else if (n >= 24 && n <= 28) rect1Surf = "M"
     rect3Surf = rect1Surf === "D" ? "M" : "D"
@@ -124,37 +133,57 @@ function buildCheckBoxes(n: number, superior: boolean): CheckBox[] {
   return boxes
 }
 
+// raio do ponto marcado conforme o tamanho
+function dotRadius(size?: string | null): number {
+  if (size === "S") return 2
+  if (size === "L") return 3.6
+  return 2.8
+}
+
 function OdontogramTooth({
   n,
   superior,
-  condition,
-  surface,
-  shape,
-  color,
+  conditions,
+  tool,
   selected,
   onSelect,
+  onSquareClick,
 }: {
   n: number
   superior: boolean
-  condition?: string
-  surface?: string
-  shape?: string | null
-  color?: string | null
+  conditions: OdontoCondition[]
+  tool: DrawTool | null
   selected?: boolean
   onSelect?: (n: number) => void
+  onSquareClick?: (n: number, surface: string) => void
 }) {
   const x = superior ? upperX(n) : lowerX(n)
   const y = superior ? BASE : BASE + SEPARATOR
   const imgX = x + IMG_W / 2 - 15 // imagem tem 30px de largura, centralizada
   const imgY = superior ? y - 10 : y + 10
 
+  // condição por superfície (marca desenhada no quadrado)
+  const markFor = (surf: string): OdontoCondition | undefined =>
+    conditions.find((c) => c.surface === surf && c.shape && c.shape !== "NONE")
+
+  // condição global do dente (superfície WHOLE, rende marcas por cima do dente)
+  const wholeCond = conditions.find((c) => c.surface === "WHOLE")
+  const condition = wholeCond?.condition
+  const surface = wholeCond?.surface
+  const shape = wholeCond?.shape
+  const color = wholeCond?.color || undefined
+  const size = wholeCond?.size || "M"
+
   const shapeColor =
-    color || (shape === "X" ? "#e11d48" : shape === "DOT" && condition ? CONDITION_HEX[condition] : undefined) || COLOR_BLUE
+    color ||
+    (shape === "X" ? "#e11d48" : shape === "DOT" && condition ? CONDITION_HEX[condition] : undefined) ||
+    COLOR_BLUE
 
   const boxes = buildCheckBoxes(n, superior)
   const boxesWithState = boxes.map((b) => {
     let state = 0
-    if (condition === "CARIE" || condition === "OBTURADO") {
+    const hasMark = markFor(b.surface) !== undefined
+    if (!hasMark && (condition === "CARIE" || condition === "OBTURADO")) {
       const match = surface === "WHOLE" || surface === b.surface || (surface === "P" && b.surface === "L")
       if (match) state = condition === "CARIE" ? 1 : 11
     }
@@ -179,8 +208,8 @@ function OdontogramTooth({
         className="odontogram-tooth-img"
       />
 
-      {/* marca de dente extraído: X azul sobre o dente (omitido quando a marca "X" já é usada) */}
-      {condition === "EXTRAIDO" && shape !== "X" && (
+      {/* marca global de extração sobre o dente (superfície WHOLE) */}
+      {condition === "EXTRAIDO" && surface === "WHOLE" && shape !== "X" && (
         <g stroke={COLOR_BLUE} strokeWidth="2" strokeLinecap="round">
           {superior ? (
             <>
@@ -197,7 +226,7 @@ function OdontogramTooth({
       )}
 
       {/* marca de fratura: linha vermelha diagonal */}
-      {condition === "FRATURADO" && (
+      {condition === "FRATURADO" && surface === "WHOLE" && (
         <line
           x1={x}
           y1={superior ? y + IMG_H : y}
@@ -209,7 +238,7 @@ function OdontogramTooth({
       )}
 
       {/* marca de coroa: elipse azul no terço coronário */}
-      {(condition === "COROA" || condition === "IMPLANTE") && (
+      {(condition === "COROA" || condition === "IMPLANTE") && surface === "WHOLE" && (
         <ellipse
           cx={x + IMG_W / 2}
           cy={superior ? y + 16 : y + IMG_H - 16}
@@ -222,7 +251,7 @@ function OdontogramTooth({
       )}
 
       {/* marca de implante: retângulo + pino azul */}
-      {condition === "IMPLANTE" && (
+      {condition === "IMPLANTE" && surface === "WHOLE" && (
         <g stroke={COLOR_BLUE} strokeWidth="2" fill="none">
           <rect x={x + 13} y={superior ? y + IMG_H - 40 : y + 13} width="14" height="14" />
           <line
@@ -235,7 +264,7 @@ function OdontogramTooth({
       )}
 
       {/* marca de raiz: "RR" vermelho */}
-      {condition === "RAIZ" && (
+      {condition === "RAIZ" && surface === "WHOLE" && (
         <text
           x={x + IMG_W / 2}
           y={y + IMG_H / 2}
@@ -248,8 +277,8 @@ function OdontogramTooth({
         </text>
       )}
 
-      {/* marca gráfica por forma (procedimento): X para ausente, ponto para cárie */}
-      {shape && shape !== "NONE" && (
+      {/* marca gráfica sobre o dente inteiro (WHOLE) */}
+      {shape !== "NONE" && shape && surface === "WHOLE" && (
         <>
           {shape === "X" && (
             <g stroke={shapeColor} strokeWidth="4" strokeLinecap="round">
@@ -266,19 +295,44 @@ function OdontogramTooth({
         </>
       )}
 
-      {/* checkboxes de superfície */}
-      {boxesWithState.map((b) => (
-        <rect
-          key={b.key}
-          x={b.x}
-          y={b.y}
-          width={RECT_DIMEN}
-          height={RECT_DIMEN}
-          fill={b.state === 1 ? COLOR_RED : b.state === 11 ? COLOR_BLUE : "transparent"}
-          stroke={b.state === 0 ? "rgba(100,116,139,0.6)" : "#000000"}
-          strokeWidth="1"
-        />
-      ))}
+      {/* quadrados de superfície + marcas por quadrado */}
+      {boxesWithState.map((b) => {
+        const mark = markFor(b.surface)
+        return (
+          <g
+            key={b.key}
+            cursor={tool ? "crosshair" : "pointer"}
+            onClick={(e) => {
+              e.stopPropagation()
+              onSquareClick?.(n, b.surface)
+            }}
+          >
+            <rect
+              x={b.x}
+              y={b.y}
+              width={RECT_DIMEN}
+              height={RECT_DIMEN}
+              fill={b.state === 1 ? COLOR_RED : b.state === 11 ? COLOR_BLUE : "transparent"}
+              stroke={b.state === 0 ? "rgba(100,116,139,0.6)" : "#000000"}
+              strokeWidth="1"
+            />
+            {mark?.shape === "X" && (
+              <g stroke={mark.color || COLOR_BLUE} strokeWidth="1.8" strokeLinecap="round">
+                <line x1={b.x + 2} y1={b.y + 2} x2={b.x + RECT_DIMEN - 2} y2={b.y + RECT_DIMEN - 2} />
+                <line x1={b.x + RECT_DIMEN - 2} y1={b.y + 2} x2={b.x + 2} y2={b.y + RECT_DIMEN - 2} />
+              </g>
+            )}
+            {mark?.shape === "DOT" && (
+              <circle
+                cx={b.x + RECT_DIMEN / 2}
+                cy={b.y + RECT_DIMEN / 2}
+                r={dotRadius(mark.size || (size as DotSize))}
+                fill={mark.color || (mark.condition ? CONDITION_HEX[mark.condition] : undefined) || COLOR_RED}
+              />
+            )}
+          </g>
+        )
+      })}
 
       {/* número do dente com cantoneira */}
       <text
@@ -317,46 +371,42 @@ function OdontogramTooth({
 export function OdontogramArch({
   conditions,
   selectedTooth,
+  tool,
   onSelect,
+  onSquareClick,
 }: {
   conditions: OdontoCondition[]
   selectedTooth?: number | null
+  tool?: DrawTool | null
   onSelect?: (n: number) => void
+  onSquareClick?: (n: number, surface: string) => void
 }) {
   return (
     <svg viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} className="h-auto w-full select-none">
-      {UPPER.map((n) => {
-        const cond = conditions.find((c) => c.toothNumber === n)
-        return (
-          <OdontogramTooth
-            key={n}
-            n={n}
-            superior
-            condition={cond?.condition}
-            surface={cond?.surface}
-            shape={cond?.shape}
-            color={cond?.color}
-            selected={selectedTooth === n}
-            onSelect={onSelect}
-          />
-        )
-      })}
-      {LOWER.map((n) => {
-        const cond = conditions.find((c) => c.toothNumber === n)
-        return (
-          <OdontogramTooth
-            key={n}
-            n={n}
-            superior={false}
-            condition={cond?.condition}
-            surface={cond?.surface}
-            shape={cond?.shape}
-            color={cond?.color}
-            selected={selectedTooth === n}
-            onSelect={onSelect}
-          />
-        )
-      })}
+      {UPPER.map((n) => (
+        <OdontogramTooth
+          key={n}
+          n={n}
+          superior
+          conditions={conditions.filter((c) => c.toothNumber === n)}
+          tool={tool ?? null}
+          selected={selectedTooth === n}
+          onSelect={onSelect}
+          onSquareClick={onSquareClick}
+        />
+      ))}
+      {LOWER.map((n) => (
+        <OdontogramTooth
+          key={n}
+          n={n}
+          superior={false}
+          conditions={conditions.filter((c) => c.toothNumber === n)}
+          tool={tool ?? null}
+          selected={selectedTooth === n}
+          onSelect={onSelect}
+          onSquareClick={onSquareClick}
+        />
+      ))}
     </svg>
   )
 }

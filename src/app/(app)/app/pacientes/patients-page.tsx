@@ -104,7 +104,7 @@ export function PatientsPage({
   }
 
   return (
-    <div className="mx-auto max-w-[1600px] space-y-6 px-6 py-8">
+    <div className="mx-auto max-w-[1600px] space-y-5 sm:space-y-6 px-3.5 py-4 sm:px-6 sm:py-8">
       <div className="anim-fade-up flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-white">

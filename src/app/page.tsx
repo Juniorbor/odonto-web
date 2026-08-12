@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import {
@@ -52,11 +52,6 @@ export default function LoginPage() {
   return (
     <div className="bg-glow relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10">
       <div className="bg-grid pointer-events-none absolute inset-0 opacity-60" />
-      <div className="anim-float pointer-events-none absolute -left-24 top-16 hidden h-72 w-72 rounded-full bg-sky-500/10 blur-3xl lg:block" />
-      <div
-        className="anim-float pointer-events-none absolute -right-24 bottom-16 hidden h-80 w-80 rounded-full bg-cyan-400/10 blur-3xl lg:block"
-        style={{ animationDelay: "2s" }}
-      />
 
       <div className="anim-fade-up relative z-10 grid w-full max-w-[1600px] overflow-hidden rounded-3xl border border-[#1c2942] bg-[#0b1220]/90 shadow-2xl backdrop-blur-xl lg:grid-cols-[minmax(0,460px)_minmax(0,1fr)] xl:grid-cols-[minmax(0,500px)_minmax(0,1fr)]">
         {/* Coluna esquerda: formulário de login */}
@@ -145,141 +140,182 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Coluna direita: radiografia panorâmica 3D */}
+        {/* Coluna direita: radiografia panorâmica */}
         <div className="relative hidden overflow-hidden border-l border-[#16213a] bg-gradient-to-br from-[#0a1424] to-[#060b14] lg:block">
           <div className="bg-grid pointer-events-none absolute inset-0 opacity-40" />
-          <RadiographScene />
+          <PanoramicImage />
         </div>
       </div>
     </div>
   )
 }
 
-/* ---------- Radiografia panorâmica com lupa e números financeiros ---------- */
+/* ---------- Radiografia panorâmica com lupa automática de varredura ---------- */
 
-const FINANCE_NUMBERS = [
-  { value: "94.320", top: "6%", left: "5%", size: "text-xl", delay: "0s", dur: "30s" },
-  { value: "12.480", top: "12%", right: "7%", size: "text-lg", delay: "3s", dur: "34s" },
-  { value: "3.215", bottom: "26%", right: "13%", size: "text-lg", delay: "6s", dur: "28s" },
-  { value: "1.240.900", bottom: "16%", right: "5%", size: "text-xl", delay: "1.5s", dur: "32s" },
-  { value: "128", bottom: "8%", left: "9%", size: "text-lg", delay: "8s", dur: "26s" },
-]
-
-const PANO_ASPECT = 1.894
-const LUPA_WIDTH_FRAC = 0.18
+const LUPA_WIDTH_FRAC = 0.20
 const LUPA_ZOOM = 2.6
 
-function RadiographScene() {
+function PanoramicImage() {
   const stageRef = useRef<HTMLDivElement>(null)
+  const lensRef = useRef<HTMLDivElement>(null)
+  const innerRef = useRef<HTMLDivElement>(null)
+  const sizeRef = useRef({ w: 0, h: 0 })
+  const posRef = useRef({ x: 0, y: 0 })
+  const mousePosRef = useRef<{ x: number; y: number } | null>(null)
+  const isHoveredRef = useRef(false)
+  const rafRef = useRef(0)
+
+  const placeAt = useCallback((x: number, y: number) => {
+    const lens = lensRef.current
+    const inner = innerRef.current
+    const { w, h } = sizeRef.current
+    if (!lens || !inner || !w || !h) return
+
+    const lensSize = Math.min(w * LUPA_WIDTH_FRAC, h * 0.38)
+    const half = lensSize / 2
+    const cx = Math.min(Math.max(x, half), w - half)
+    const cy = Math.min(Math.max(y, half), h - half)
+    posRef.current = { x: cx, y: cy }
+
+    lens.style.width = `${lensSize}px`
+    lens.style.height = `${lensSize}px`
+    lens.style.left = `${cx - half}px`
+    lens.style.top = `${cy - half}px`
+    inner.style.width = `${w * LUPA_ZOOM}px`
+    inner.style.height = `${h * LUPA_ZOOM}px`
+    inner.style.transform = `translate(${half - cx * LUPA_ZOOM}px, ${half - cy * LUPA_ZOOM}px)`
+  }, [])
 
   useEffect(() => {
     const stage = stageRef.current
     if (!stage) return
 
-    let raf = 0
-    const start = performance.now()
-
-    const step = (now: number) => {
-      const w = stage.clientWidth
-      const h = stage.clientHeight
-      const lens = Math.min(w * LUPA_WIDTH_FRAC, h * 0.36)
-      const half = lens / 2
-      const pad = lens * 0.15
-      const xMin = half + pad
-      const xMax = w - half - pad
-      const yMin = half + pad
-      const yMax = h - half - pad
-      const cx = (xMin + xMax) / 2
-      const cy = (yMin + yMax) / 2
-      const ax = (xMax - xMin) / 2
-      const ay = (yMax - yMin) / 2
-      const t = (now - start) / 1000
-      const lx = cx + ax * Math.sin(t * 0.55)
-      const ly = cy + ay * Math.sin(t * 0.37 + 1.3)
-      stage.style.setProperty("--lx", `${lx}px`)
-      stage.style.setProperty("--ly", `${ly}px`)
-      stage.style.setProperty("--lens", `${lens}px`)
-      stage.style.setProperty("--loff", `${(half * (LUPA_ZOOM - 1))}px`)
-      stage.style.setProperty("--cw", `${w * LUPA_ZOOM}px`)
-      stage.style.setProperty("--ch", `${h * LUPA_ZOOM}px`)
-      raf = requestAnimationFrame(step)
+    const updateSize = () => {
+      const rect = stage.getBoundingClientRect()
+      if (!rect.width) return
+      const changed = sizeRef.current.w !== rect.width || sizeRef.current.h !== rect.height
+      sizeRef.current = { w: rect.width, h: rect.height }
+      if (posRef.current.x === 0 && posRef.current.y === 0) {
+        posRef.current = { x: rect.width * 0.5, y: rect.height * 0.5 }
+      } else if (changed) {
+        placeAt(posRef.current.x, posRef.current.y)
+      }
     }
 
-    raf = requestAnimationFrame(step)
-    return () => cancelAnimationFrame(raf)
-  }, [])
+    updateSize()
+    const ro = new ResizeObserver(updateSize)
+    ro.observe(stage)
+
+    const step = (now: number) => {
+      const { w, h } = sizeRef.current
+      if (w > 0 && h > 0) {
+        let targetX = posRef.current.x
+        let targetY = posRef.current.y
+
+        if (isHoveredRef.current && mousePosRef.current) {
+          targetX = mousePosRef.current.x
+          targetY = mousePosRef.current.y
+        } else {
+          const lensSize = Math.min(w * LUPA_WIDTH_FRAC, h * 0.38)
+          const half = lensSize / 2
+          const marginX = half + 20
+          const marginY = half + 16
+
+          const minX = marginX
+          const maxX = w - marginX
+          const minY = marginY
+          const maxY = h - marginY
+
+          const centerX = (minX + maxX) / 2
+          const centerY = (minY + maxY) / 2
+          const ampX = (maxX - minX) / 2
+          const ampY = (maxY - minY) / 2.5
+
+          const t = now / 1000
+          targetX = centerX + ampX * Math.sin(t * 0.8)
+          targetY = centerY + ampY * Math.sin(t * 1.6) * 0.7
+        }
+
+        const currentX = posRef.current.x
+        const currentY = posRef.current.y
+        const lerpFactor = isHoveredRef.current ? 0.2 : 0.08
+        const nextX = currentX + (targetX - currentX) * lerpFactor
+        const nextY = currentY + (targetY - currentY) * lerpFactor
+
+        placeAt(nextX, nextY)
+      }
+      rafRef.current = requestAnimationFrame(step)
+    }
+
+    rafRef.current = requestAnimationFrame(step)
+
+    return () => {
+      cancelAnimationFrame(rafRef.current)
+      ro.disconnect()
+    }
+  }, [placeAt])
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    const rect = stageRef.current?.getBoundingClientRect()
+    if (!rect) return
+    isHoveredRef.current = true
+    mousePosRef.current = {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    }
+  }
+
+  const handleMouseLeave = () => {
+    isHoveredRef.current = false
+    mousePosRef.current = null
+  }
 
   return (
     <div className="relative flex h-full min-h-[560px] items-center justify-center px-1 py-2">
-      <div ref={stageRef} className="pano-stage relative w-full overflow-hidden rounded-2xl border border-[#23345a] bg-[#0a101c] shadow-2xl" style={{ aspectRatio: String(PANO_ASPECT) }}>
+      <div
+        ref={stageRef}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        className="group relative w-full overflow-hidden rounded-2xl border border-[#23345a] bg-[#0a101c] shadow-2xl"
+        style={{ aspectRatio: "1.894", cursor: "zoom-in" }}
+      >
         {/* radiografia */}
-          <img
-            src="/pan.png"
-            alt="Radiografia panorâmica"
-            className="absolute inset-0 h-full w-full select-none object-cover"
-            draggable={false}
-          />
+        <img
+          src="/pan.png"
+          alt="Radiografia panorâmica"
+          className="absolute inset-0 h-full w-full select-none object-cover"
+          draggable={false}
+        />
 
-          {/* brilho no canto (pulso suave) */}
-          <div className="pano-glow pointer-events-none absolute -right-10 -top-10 h-48 w-48 rounded-full bg-sky-400/25 blur-3xl" />
-          <div className="pano-glow pointer-events-none absolute -bottom-16 -left-10 h-56 w-56 rounded-full bg-cyan-400/15 blur-3xl" style={{ animationDelay: "2.4s" }} />
+        {/* cor da marca transparente por cima da panorâmica */}
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-sky-400/25 via-cyan-400/20 to-indigo-400/30 mix-blend-overlay" />
 
-          {/* linha de varredura */}
-          <div className="pano-scan pointer-events-none absolute top-0 h-full w-16 bg-gradient-to-r from-transparent via-sky-300/20 to-transparent" />
-
-          {/* números financeiros deslizando lentamente sobre a radiografia */}
-          {FINANCE_NUMBERS.map((n) => (
-            <div
-              key={n.value}
-              className="pano-num pointer-events-none absolute z-20 select-none"
-              style={{
-                top: n.top,
-                bottom: n.bottom,
-                left: n.left,
-                right: n.right,
-                animationDuration: n.dur,
-                animationDelay: n.delay,
-              }}
-            >
-              <p className={`${n.size} font-black tracking-tight text-white/50 drop-shadow-[0_2px_12px_rgba(2,6,23,0.9)]`}>
-                {n.value}
-              </p>
-            </div>
-          ))}
-
-          {/* lupa com região ampliada */}
-          <div
-            className="pano-lupa pointer-events-none absolute z-30 overflow-hidden rounded-full border-2 border-sky-300/70 bg-sky-400/5 shadow-[0_0_50px_rgba(56,189,248,0.5),inset_0_0_24px_rgba(2,6,23,0.6)]"
-            style={{
-              width: "var(--lens)",
-              height: "var(--lens)",
-              left: "var(--lx, 20px)",
-              top: "var(--ly, 20px)",
-            }}
-          >
-            <div
-              className="absolute left-0 top-0"
-              style={{
-                width: "var(--cw)",
-                height: "var(--ch)",
-                transform: `translate(calc(-${LUPA_ZOOM} * var(--lx, 20px) - var(--loff)), calc(-${LUPA_ZOOM} * var(--ly, 20px) - var(--loff)))`,
-              }}
-            >
-              <img src="/pan.png" alt="" draggable={false} className="h-full w-full select-none object-cover opacity-95" />
-            </div>
-            {/* anel interno e reflexo do vidro */}
-            <div className="pointer-events-none absolute inset-[3px] rounded-full border border-white/25" />
-            <div className="pointer-events-none absolute -left-6 -top-10 h-24 w-16 rotate-45 rounded-full bg-gradient-to-b from-white/25 to-transparent blur-sm" />
-            {/* mira milimétrica */}
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-              <div className="h-6 w-px bg-white/30" />
-              <div className="absolute h-px w-6 bg-white/30" />
-            </div>
+        {/* lupa com região ampliada */}
+        <div
+          ref={lensRef}
+          className="pointer-events-none absolute z-30 overflow-hidden rounded-full border-2 border-sky-300/70 bg-sky-400/5 shadow-[0_0_50px_rgba(56,189,248,0.5),inset_0_0_24px_rgba(2,6,23,0.6)] transition-shadow duration-300"
+        >
+          <div ref={innerRef} className="absolute left-0 top-0">
+            <img src="/pan.png" alt="" draggable={false} className="h-full w-full select-none object-cover opacity-95" />
           </div>
-
-          {/* moldura sutil */}
-          <div className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/[0.06]" />
+          {/* anel interno e reflexo do vidro */}
+          <div className="pointer-events-none absolute inset-[3px] rounded-full border border-white/25" />
+          <div className="pointer-events-none absolute -left-6 -top-10 h-24 w-16 rotate-45 rounded-full bg-gradient-to-b from-white/25 to-transparent blur-sm" />
+          {/* mira milimétrica */}
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <div className="h-6 w-px bg-white/30" />
+            <div className="absolute h-px w-6 bg-white/30" />
+          </div>
         </div>
+
+        {/* dica e moldura */}
+        <div className="pointer-events-none absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-full border border-white/10 bg-[#05070d]/70 px-3.5 py-1.5 text-[11px] font-medium text-slate-300 shadow-lg backdrop-blur-md">
+          <span className="inline-block h-2 w-2 rounded-full bg-sky-400 animate-pulse mr-2" />
+          Lupa automática • Passe o mouse para controlar
+        </div>
+        <div className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/[0.06]" />
+      </div>
     </div>
   )
 }
+

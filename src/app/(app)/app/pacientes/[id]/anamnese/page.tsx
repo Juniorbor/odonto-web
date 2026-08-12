@@ -18,7 +18,7 @@ export default async function PatientAnamnesisPage({ params }: { params: Promise
   if (!patient) notFound()
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 px-4 py-8 sm:px-6">
+    <div className="mx-auto max-w-[1600px] space-y-6 px-6 py-8">
       <div className="anim-fade-up">
         <Link
           href={`/app/pacientes/${patient.id}`}

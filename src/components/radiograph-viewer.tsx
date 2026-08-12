@@ -30,6 +30,42 @@ const TOOL_ICONS: Record<Tool, typeof Circle> = {
   lupa: ZoomIn,
 }
 
+function normalizeLoaded(raw: unknown): ViewerShape | null {
+  const r = (raw ?? {}) as Record<string, unknown>
+  const asArr = (v: unknown): { x: number; y: number }[] => (Array.isArray(v) ? (v as { x: number; y: number }[]) : [])
+  const first = asArr(r.points)[0]
+  const px = (v: unknown) => (typeof v === "number" ? v : first?.x ?? 0)
+  const py = (v: unknown) => (typeof v === "number" ? v : first?.y ?? 0)
+  switch (r.type) {
+    case "arrow":
+      return {
+        type: "arrow",
+        x1: px(r.x1),
+        y1: py(r.y1),
+        x2: px(r.x2),
+        y2: py(r.y2),
+      }
+    case "circle":
+      return { type: "circle", cx: px(r.cx), cy: py(r.cy), rx: px(r.rx), ry: py(r.ry) }
+    case "rect":
+      return { type: "rect", x: px(r.x), y: py(r.y), w: px(r.w), h: py(r.h) }
+    case "path":
+      return { type: "path", points: (asArr(r.points)).map((p) => [p.x, p.y]) }
+    case "pencil": {
+      const pts = (asArr(r.points)).map((p) => [p.x, p.y])
+      return pts.length >= 2 ? { type: "path", points: pts as [number, number][] } : null
+    }
+    case "line":
+    case "dash":
+    case "ellipse":
+    case "region":
+    case "text":
+      return null
+    default:
+      return null
+  }
+}
+
 function ShapeSvg({ shape }: { shape: ViewerShape }) {
   if (shape.type === "arrow") {
     const dx = shape.x2 - shape.x1
@@ -84,6 +120,10 @@ export function RadiographViewer({
   const lensRef = useRef<HTMLDivElement>(null)
   const drawingRef = useRef(false)
   const startRef = useRef<{ x: number; y: number } | null>(null)
+  const shapesRef = useRef<ViewerShape[]>([])
+  const dirtyRef = useRef(false)
+  const closingRef = useRef(false)
+  const savingRef = useRef(false)
 
   const toImageCoords = useCallback(
     (clientX: number, clientY: number) => {
@@ -168,6 +208,7 @@ export function RadiographViewer({
     if (draft) {
       setShapes((all) => [...all, draft])
       setDraft(null)
+      dirtyRef.current = true
     }
   }
 
@@ -176,29 +217,57 @@ export function RadiographViewer({
     if (tool === "lupa" && lensRef.current) lensRef.current.style.opacity = "0"
   }
 
-  const undo = () => setShapes((s) => s.slice(0, -1))
+  const undo = () => {
+    setShapes((s) => s.slice(0, -1))
+    dirtyRef.current = true
+  }
   const clear = () => {
     setShapes([])
     setDraft(null)
+    dirtyRef.current = true
   }
 
-  const save = async () => {
+  const save = useCallback(async (): Promise<boolean> => {
+    const current = shapesRef.current
+    if (savingRef.current) return true
+    savingRef.current = true
     setSaving(true)
     try {
       const res = await fetch(`/api/app/radiographs/${radiograph.id}/annotations`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ layerJson: shapes }),
+        body: JSON.stringify({ layerJson: current }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "Erro ao salvar anotações.")
-      toast("Anotações salvas.", "success")
+      dirtyRef.current = false
+      toast("Anotações salvas com segurança.", "success")
+      return true
     } catch (e) {
       toast((e as Error).message, "error")
+      return false
     } finally {
+      savingRef.current = false
       setSaving(false)
     }
-  }
+  }, [radiograph.id, toast])
+
+  const closeWithSave = useCallback(async () => {
+    if (closingRef.current) return
+    closingRef.current = true
+    try {
+      if (dirtyRef.current && shapesRef.current.length > 0) {
+        const ok = await save()
+        if (!ok) {
+          toast("Não foi possível salvar. Feche novamente para tentar.", "error")
+          return
+        }
+      }
+      onClose()
+    } finally {
+      closingRef.current = false
+    }
+  }, [save, onClose, toast])
 
   useEffect(() => {
     if (!open) return
@@ -206,6 +275,9 @@ export function RadiographViewer({
     setDraft(null)
     setImgLoaded(false)
     setLoaded(false)
+    dirtyRef.current = false
+    closingRef.current = false
+    shapesRef.current = []
     let cancelled = false
     if (lensRef.current) lensRef.current.style.opacity = "0"
     ;(async () => {
@@ -213,7 +285,8 @@ export function RadiographViewer({
         const res = await fetch(`/api/app/radiographs/${radiograph.id}/annotations`)
         const data = await res.json()
         if (res.ok && data.annotation && !cancelled) {
-          setShapes(Array.isArray(data.annotation.layerJson) ? data.annotation.layerJson : [])
+          const layer = Array.isArray(data.annotation.layerJson) ? (data.annotation.layerJson as unknown[]) : []
+          setShapes(layer.map(normalizeLoaded).filter((s): s is ViewerShape => s !== null))
         }
       } catch {
         // sem camada salva
@@ -227,12 +300,17 @@ export function RadiographViewer({
   }, [open, radiograph?.id])
 
   useEffect(() => {
+    shapesRef.current = shapes
+  }, [shapes])
+
+  useEffect(() => {
     if (!open) return
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose()
+      if (e.key === "Escape") closeWithSave()
       if ((e.key === "z" || e.key === "Z") && (e.ctrlKey || e.metaKey)) {
         e.preventDefault()
         setShapes((s) => s.slice(0, -1))
+        dirtyRef.current = true
       }
     }
     document.addEventListener("keydown", handler)
@@ -241,7 +319,7 @@ export function RadiographViewer({
       document.removeEventListener("keydown", handler)
       document.body.style.overflow = ""
     }
-  }, [open, onClose])
+  }, [open, onClose, closeWithSave])
 
   if (!open) return null
 
@@ -259,7 +337,7 @@ export function RadiographViewer({
             <Save className="h-3.5 w-3.5" /> Salvar
           </Button>
           <button
-            onClick={onClose}
+            onClick={closeWithSave}
             className="ml-1 rounded-lg p-1.5 text-slate-500 transition hover:bg-white/5 hover:text-slate-200"
             aria-label="Fechar"
           >

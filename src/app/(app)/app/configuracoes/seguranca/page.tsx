@@ -16,7 +16,7 @@ export default async function ConfigSecurityPage() {
   })
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 px-4 py-8 sm:px-6">
+    <div className="mx-auto max-w-[1600px] space-y-6 px-6 py-8">
       <div className="anim-fade-up">
         <LinkButton href="/app/configuracoes" variant="ghost" size="sm" className="gap-1.5">
           <ArrowLeft className="h-4 w-4" /> Voltar

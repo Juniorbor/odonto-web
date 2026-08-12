@@ -10,6 +10,7 @@ const conditionSchema = z.object({
   surface: z.string().max(5).default("WHOLE"),
   condition: z.enum(["CARIE", "OBTURADO", "COROA", "EXTRAIDO", "FRATURADO", "RAIZ", "IMPLANTE", "SAUDAVEL"]),
   shape: z.enum(["NONE", "X", "DOT"]).default("NONE"),
+  size: z.enum(["S", "M", "L"]).default("M"),
   color: z.string().max(20).optional().or(z.literal("")),
   note: z.string().max(500).optional().or(z.literal("")),
 })
@@ -41,6 +42,7 @@ export async function GET(req: NextRequest) {
             surface: c.surface,
             condition: c.condition,
             shape: c.shape,
+            size: c.size,
             color: c.color,
             note: c.note,
             createdAt: c.createdAt.toISOString(),
@@ -87,6 +89,7 @@ export async function POST(req: NextRequest) {
         surface: d.surface,
         condition: d.condition,
         shape: d.shape,
+        size: d.size,
         color: d.color || undefined,
         note: d.note || undefined,
         userId: ctx.user.id,

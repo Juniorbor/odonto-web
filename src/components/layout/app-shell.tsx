@@ -264,10 +264,10 @@ export function AppShell({
       {sidebarOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div className="anim-fade-in absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
-          <aside className="anim-fade-in absolute inset-y-0 left-0 w-72 border-r border-[#16213a] bg-[#070b14]">
+          <aside className="anim-fade-in absolute inset-y-0 left-0 w-72 border-r border-[#16213a] bg-[#070b14] pb-safe">
             <button
               onClick={() => setSidebarOpen(false)}
-              className="absolute right-3 top-4 rounded-lg p-1.5 text-slate-500 hover:bg-white/5 hover:text-white"
+              className="absolute right-3 top-4 rounded-lg p-2 text-slate-500 hover:bg-white/5 hover:text-white"
               aria-label="Fechar menu"
             >
               <X className="h-5 w-5" />
@@ -292,7 +292,7 @@ export function AppShell({
           </div>
         )}
         <header className="no-print sticky top-0 z-30 border-b border-[#16213a] bg-[#070b14]/80 backdrop-blur-xl">
-          <div className="flex h-16 items-center gap-3 px-4 sm:px-6">
+          <div className="flex h-14 sm:h-16 items-center gap-2 sm:gap-3 px-3 sm:px-6">
             <button
               onClick={() => setSidebarOpen(true)}
               className="rounded-lg p-2 text-slate-400 transition hover:bg-white/5 hover:text-white lg:hidden"
@@ -306,11 +306,18 @@ export function AppShell({
               <GlobalSearch />
             </div>
 
-            <div className="ml-auto flex items-center gap-2">
+            <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
+              <button
+                onClick={() => router.push("/app/busca")}
+                className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#1c2942] bg-[#0a1120] text-slate-400 transition hover:border-sky-700/50 hover:text-sky-300 sm:hidden"
+                aria-label="Buscar"
+              >
+                <Search className="h-4 w-4" />
+              </button>
               <NotificationBell />
               <button
                 onClick={() => router.push("/app/configuracoes/perfil")}
-                className="flex items-center gap-2.5 rounded-xl border border-[#1c2942] bg-[#0a1120] px-2.5 py-1.5 transition hover:border-sky-700/50"
+                className="flex items-center gap-2.5 rounded-xl border border-[#1c2942] bg-[#0a1120] px-2 py-1 sm:px-2.5 sm:py-1.5 transition hover:border-sky-700/50"
               >
                 <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-sky-600 to-cyan-500 text-xs font-bold text-white">
                   {initials(user.name)}
@@ -325,6 +332,7 @@ export function AppShell({
             </div>
           </div>
         </header>
+
 
         <main className="flex-1">{children}</main>
       </div>

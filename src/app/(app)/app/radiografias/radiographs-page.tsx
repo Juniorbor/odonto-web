@@ -44,6 +44,85 @@ const TOOLS: { id: Tool; label: string; icon: ReactNode }[] = [
 const MAG = 180
 const ZOOM = 2.5
 
+function normalizeLayer(raw: unknown): Shape | null {
+  const r = (raw ?? {}) as Record<string, unknown>
+  const asArr = (v: unknown): Pt[] => (Array.isArray(v) ? (v as Pt[]) : [])
+  const color = typeof r.color === "string" ? r.color : COLORS[0]
+  const width = typeof r.width === "number" ? r.width : 3
+  switch (r.type) {
+    case "line":
+    case "dash": {
+      const a = asArr(r.points)[0]
+      const b = asArr(r.points)[1]
+      if (!a || !b) return null
+      return { type: r.type as "line" | "dash", points: [a, b], color, width }
+    }
+    case "arrow": {
+      const pts = asArr(r.points)
+      const a = pts[0]
+      const b = pts[1]
+      if (a && b) return { type: "arrow", points: [a, b], color, width }
+      const x1 = typeof r.x1 === "number" ? r.x1 : 0
+      const y1 = typeof r.y1 === "number" ? r.y1 : 0
+      const x2 = typeof r.x2 === "number" ? r.x2 : 0
+      const y2 = typeof r.y2 === "number" ? r.y2 : 0
+      return { type: "arrow", points: [{ x: x1, y: y1 }, { x: x2, y: y2 }], color, width }
+    }
+    case "ellipse":
+    case "circle": {
+      const pts = asArr(r.points)
+      if (pts.length >= 2) {
+        return { type: "ellipse", points: [pts[0], pts[pts.length - 1]], color, width }
+      }
+      const cx = typeof r.cx === "number" ? r.cx : 0
+      const cy = typeof r.cy === "number" ? r.cy : 0
+      const rx = typeof r.rx === "number" ? r.rx : 1
+      const ry = typeof r.ry === "number" ? r.ry : 1
+      return { type: "ellipse", points: [{ x: cx - rx, y: cy - ry }, { x: cx + rx, y: cy + ry }], color, width }
+    }
+    case "rect": {
+      const pts = asArr(r.points)
+      if (pts.length >= 2) {
+        return { type: "rect", points: [pts[0], pts[pts.length - 1]], color, width }
+      }
+      const x = typeof r.x === "number" ? r.x : 0
+      const y = typeof r.y === "number" ? r.y : 0
+      const w = typeof r.w === "number" ? r.w : 0
+      const h = typeof r.h === "number" ? r.h : 0
+      return { type: "rect", points: [{ x, y }, { x: x + w, y: y + h }], color, width }
+    }
+    case "path": {
+      const rawPts = r.points as unknown[]
+      if (!Array.isArray(rawPts)) return null
+      const pts: Pt[] = rawPts.map((p) => {
+        if (Array.isArray(p) && p.length >= 2) return { x: Number(p[0]), y: Number(p[1]) }
+        return p as Pt
+      })
+      if (pts.length < 2) return null
+      return { type: "pencil", points: pts, color, width }
+    }
+    case "pencil":
+    case "region": {
+      const pts = asArr(r.points)
+      if (pts.length < 2) return null
+      return { type: r.type as "pencil" | "region", points: pts, color, width }
+    }
+    case "text": {
+      const a = asArr(r.points)[0]
+      if (!a) return null
+      return {
+        type: "text",
+        points: [a],
+        color,
+        width: typeof r.width === "number" ? r.width : 20,
+        text: typeof r.text === "string" ? r.text : "",
+      }
+    }
+    default:
+      return null
+  }
+}
+
 type RadiographRow = {
   id: string
   patientId: string
@@ -75,11 +154,21 @@ export function RadiographsPage({ patients }: { patients: { id: string; fullName
   const [saving, setSaving] = useState(false)
 
   const [file, setFile] = useState<File | null>(null)
-  const [formPatient, setFormPatient] = useState(searchParams.get("patientId") || "")
+  const [formPatient, setFormPatient] = useState("")
   const [formExam, setFormExam] = useState("PANORAMICA")
   const [formLabel, setFormLabel] = useState("")
   const [formNotes, setFormNotes] = useState("")
   const [formTakenAt, setFormTakenAt] = useState(new Date().toISOString().slice(0, 10))
+
+  const openUpload = () => {
+    setUploadOpen(true)
+    setFile(null)
+    setFormPatient(patientFilter !== "all" ? patientFilter : searchParams.get("patientId") || "")
+    setFormExam("PANORAMICA")
+    setFormLabel("")
+    setFormNotes("")
+    setFormTakenAt(new Date().toISOString().slice(0, 10))
+  }
 
   const [tool, setTool] = useState<Tool>("line")
   const [color, setColor] = useState(COLORS[0])
@@ -94,8 +183,22 @@ export function RadiographsPage({ patients }: { patients: { id: string; fullName
   const [textValue, setTextValue] = useState("")
   const [fontSize, setFontSize] = useState(20)
   const [exporting, setExporting] = useState(false)
+  const [savingAnn, setSavingAnn] = useState(false)
+  const [snapshots, setSnapshots] = useState<string[]>([])
   const drawingRef = useRef(false)
   const lastClickRef = useRef<{ t: number; p: Pt } | null>(null)
+  const shapesRef = useRef<Shape[]>([])
+  const dirtyRef = useRef(false)
+  const savingAnnRef = useRef(false)
+  const closingRef = useRef(false)
+  const lastSavedRef = useRef("[]")
+  const imgRef = useRef<HTMLImageElement | null>(null)
+
+  useEffect(() => {
+    shapesRef.current = shapes
+    if (JSON.stringify(shapes) !== lastSavedRef.current) dirtyRef.current = true
+    else dirtyRef.current = false
+  }, [shapes])
 
   useEffect(() => {
     setShapes([])
@@ -105,8 +208,33 @@ export function RadiographsPage({ patients }: { patients: { id: string; fullName
     setHover(null)
     setDrag(null)
     setEditing(null)
+    setSnapshots([])
     drawingRef.current = false
     lastClickRef.current = null
+    dirtyRef.current = false
+    closingRef.current = false
+    shapesRef.current = []
+    lastSavedRef.current = "[]"
+    imgRef.current = null
+    if (viewing) {
+      ;(async () => {
+        try {
+          const res = await fetch(`/api/app/radiographs/${viewing.id}/annotations`)
+          const data = await res.json()
+          if (res.ok && data.annotation && Array.isArray(data.annotation.layerJson)) {
+            const layer = (data.annotation.layerJson as unknown[])
+              .map(normalizeLayer)
+              .filter((s): s is Shape => s !== null)
+            setShapes(layer)
+            shapesRef.current = layer
+            lastSavedRef.current = JSON.stringify(layer)
+            dirtyRef.current = false
+          }
+        } catch {
+          // sem camada salva
+        }
+      })()
+    }
   }, [viewing])
 
   const pos = (e: ReactPointerEvent<SVGSVGElement>): Pt => {
@@ -202,7 +330,10 @@ export function RadiographsPage({ patients }: { patients: { id: string; fullName
       }
       return
     }
-    if (tool === "zoom") return
+    if (tool === "zoom") {
+      captureRegion(p)
+      return
+    }
     if (tool === "text") {
       const pre = textValue.trim()
       const idx = shapes.length
@@ -242,9 +373,12 @@ export function RadiographsPage({ patients }: { patients: { id: string; fullName
       return
     }
     if (!draft || !drawingRef.current) return
-    setDraft({
-      ...draft,
-      points: draft.type === "pencil" ? [...draft.points, p] : [draft.points[0], p],
+    setDraft((prev) => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        points: prev.type === "pencil" ? [...prev.points, p] : [prev.points[0], p],
+      }
     })
   }
 
@@ -263,6 +397,27 @@ export function RadiographsPage({ patients }: { patients: { id: string; fullName
     const MAX_H = 720
     const scale = Math.min(MAX_W / img.naturalWidth, MAX_H / img.naturalHeight, 1)
     setView({ w: Math.round(img.naturalWidth * scale), h: Math.round(img.naturalHeight * scale) })
+  }
+
+  const captureRegion = (p: Pt) => {
+    if (!view || !viewing) return
+    const img = imgRef.current
+    if (!img || !img.complete || !img.naturalWidth) return
+    const region = MAG / ZOOM
+    const x = Math.max(0, Math.min(p.x - region / 2, view.w - region))
+    const y = Math.max(0, Math.min(p.y - region / 2, view.h - region))
+    const scale = img.naturalWidth / view.w
+    const OUT = 512
+    const canvas = document.createElement("canvas")
+    canvas.width = OUT
+    canvas.height = OUT
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return
+    ctx.imageSmoothingEnabled = true
+    ctx.drawImage(img, x * scale, y * scale, region * scale, region * scale, 0, 0, OUT, OUT)
+    const url = canvas.toDataURL("image/png")
+    setSnapshots((s) => [...s, url])
+    toast("Região ampliada adicionada ao lado direito.", "success")
   }
 
   const shapeToSvg = (s: Shape): string => {
@@ -303,6 +458,54 @@ export function RadiographsPage({ patients }: { patients: { id: string; fullName
     }
     return ""
   }
+
+  const persistAnnotations = useCallback(async (): Promise<boolean> => {
+    if (!viewing) return false
+    const current = shapesRef.current
+    if (savingAnnRef.current) return true
+    savingAnnRef.current = true
+    setSavingAnn(true)
+    try {
+      const res = await fetch(`/api/app/radiographs/${viewing.id}/annotations`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ layerJson: current }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Erro ao salvar anotações.")
+      lastSavedRef.current = JSON.stringify(current)
+      dirtyRef.current = false
+      toast("Anotações salvas com segurança.", "success")
+      return true
+    } catch (e) {
+      toast((e as Error).message, "error")
+      return false
+    } finally {
+      savingAnnRef.current = false
+      setSavingAnn(false)
+    }
+  }, [viewing, toast])
+
+  const closeViewer = useCallback(async () => {
+    if (!viewing || closingRef.current) return
+    closingRef.current = true
+    try {
+      if (dirtyRef.current) {
+        const ok = await persistAnnotations()
+        if (!ok) {
+          toast("Não foi possível salvar. Feche novamente para tentar.", "error")
+          return
+        }
+      }
+      setViewing(null)
+    } finally {
+      closingRef.current = false
+    }
+  }, [viewing, persistAnnotations, toast])
+
+  const saveViewer = useCallback(() => {
+    void persistAnnotations()
+  }, [persistAnnotations])
 
   const exportAnnotated = async () => {
     if (!view || !viewing || shapes.length === 0 || exporting) return
@@ -499,7 +702,7 @@ export function RadiographsPage({ patients }: { patients: { id: string; fullName
           </h1>
           <p className="mt-1 text-sm text-slate-500">Exames e imagens dos pacientes da clínica.</p>
         </div>
-        <Button onClick={() => setUploadOpen(true)} className="gap-1.5">
+        <Button onClick={openUpload} className="gap-1.5">
           <FileUp className="h-4 w-4" /> Enviar radiografia
         </Button>
       </div>
@@ -535,11 +738,6 @@ export function RadiographsPage({ patients }: { patients: { id: string; fullName
               icon="inbox"
               title="Nenhuma radiografia"
               description="Envie a primeira radiografia de um paciente para começar."
-              action={
-                <Button onClick={() => setUploadOpen(true)} className="gap-1.5">
-                  <FileUp className="h-4 w-4" /> Enviar radiografia
-                </Button>
-              }
             />
           </CardBody>
         </Card>
@@ -594,7 +792,12 @@ export function RadiographsPage({ patients }: { patients: { id: string; fullName
             <Button variant="ghost" onClick={() => setUploadOpen(false)} disabled={saving}>
               Cancelar
             </Button>
-            <Button onClick={onUpload} loading={saving} disabled={!file || !formPatient}>
+            <Button
+              onClick={onUpload}
+              loading={saving}
+              disabled={!file || !formPatient}
+              title={formPatient ? "Enviar para o paciente selecionado" : "Selecione o paciente antes de enviar"}
+            >
               <FileUp className="h-4 w-4" /> Enviar
             </Button>
           </>
@@ -640,6 +843,15 @@ export function RadiographsPage({ patients }: { patients: { id: string; fullName
             </Field>
           </div>
 
+          {formPatient && (
+            <div className="flex items-center gap-2 rounded-xl border border-sky-500/30 bg-sky-500/10 px-3.5 py-2.5 text-sm text-sky-200">
+              <Stethoscope className="h-4 w-4 shrink-0 text-sky-400" />
+              <span>
+                Enviando para: <strong>{patients.find((p) => p.id === formPatient)?.fullName}</strong>
+              </span>
+            </div>
+          )}
+
           <Field label="Data do exame">
             <Input type="date" value={formTakenAt} onChange={(e) => setFormTakenAt(e.target.value)} />
           </Field>
@@ -662,16 +874,19 @@ export function RadiographsPage({ patients }: { patients: { id: string; fullName
       {/* Visualizar */}
       <Modal
         open={!!viewing}
-        onClose={() => setViewing(null)}
+        onClose={closeViewer}
         title={viewing?.label || "Radiografia"}
         subtitle={viewing ? `${viewing.patient.fullName} • ${formatDate(viewing.takenAt)}` : undefined}
         size="full"
         footer={
           <div className="flex items-center gap-2">
-            <Button onClick={exportAnnotated} loading={exporting} disabled={shapes.length === 0} className="gap-1.5">
+            <Button onClick={saveViewer} loading={savingAnn} className="gap-1.5">
               <Save className="h-4 w-4" /> Salvar trabalho
             </Button>
-            <Button variant="ghost" onClick={() => setViewing(null)}>
+            <Button variant="ghost" onClick={exportAnnotated} loading={exporting} disabled={shapes.length === 0} className="gap-1.5">
+              <FileUp className="h-4 w-4" /> Exportar PNG
+            </Button>
+            <Button variant="ghost" onClick={closeViewer}>
               Fechar
             </Button>
           </div>
@@ -679,6 +894,8 @@ export function RadiographsPage({ patients }: { patients: { id: string; fullName
       >
         {viewing && (
           <div className="space-y-4">
+            <div className="flex flex-col gap-4 xl:flex-row">
+              <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center justify-center gap-1.5 rounded-2xl border border-[#16213a] bg-[#0a1120] p-2">
               {TOOLS.map((t) => (
                 <button
@@ -820,6 +1037,7 @@ export function RadiographsPage({ patients }: { patients: { id: string; fullName
                   src={viewing.url}
                   alt={viewing.label || "Radiografia"}
                   onLoad={onImageLoad}
+                  ref={imgRef}
                   className="block h-auto w-full object-contain"
                   draggable={false}
                 />
@@ -933,7 +1151,7 @@ export function RadiographsPage({ patients }: { patients: { id: string; fullName
                 {view && (
                   <p className="pointer-events-none absolute bottom-1 right-2 text-[10px] text-slate-500">
                     {tool === "zoom"
-                      ? "Mova o mouse sobre a imagem para ampliar a região"
+                      ? "Mova o mouse para ampliar; clique para capturar a região ao lado direito"
                       : tool === "region"
                         ? "Clique para marcar os pontos do contorno e dê dois cliques para finalizar"
                         : tool === "text"
@@ -969,6 +1187,55 @@ export function RadiographsPage({ patients }: { patients: { id: string; fullName
                 <p className="mt-1 whitespace-pre-wrap text-sm text-emerald-100">{viewing.reportConclusion}</p>
               </div>
             )}
+              </div>
+
+              <aside className="w-full shrink-0 xl:w-[320px]">
+                <div className="sticky top-4 space-y-4">
+                  <div className="rounded-2xl border border-[#16213a] bg-[#0a1120] p-4">
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="text-sm font-semibold text-slate-100">Regiões ampliadas</h3>
+                      {snapshots.length > 0 && (
+                        <button
+                          onClick={() => setSnapshots([])}
+                          className="text-[11px] text-rose-300 transition hover:text-rose-200"
+                        >
+                          Limpar tudo
+                        </button>
+                      )}
+                    </div>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Com a ferramenta Lupa ativa, clique sobre a panorâmica para capturar a região na imagem ao lado
+                      direito.
+                    </p>
+                    {snapshots.length === 0 ? (
+                      <div className="mt-4 flex flex-col items-center gap-2 rounded-xl border border-dashed border-[#1c2942] py-8 text-center">
+                        <ZoomIn className="h-6 w-6 text-slate-600" />
+                        <p className="text-xs text-slate-500">Nenhuma região capturada ainda.</p>
+                      </div>
+                    ) : (
+                      <div className="mt-4 space-y-3">
+                        {snapshots.map((url, i) => (
+                          <div key={`${url.slice(-24)}-${i}`} className="group relative overflow-hidden rounded-xl border border-[#16213a] bg-[#0a1120]">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={url} alt={`Região ${i + 1}`} className="w-full object-contain" />
+                            <div className="flex items-center justify-between gap-2 border-t border-[#16213a] px-3 py-1.5">
+                              <span className="text-[11px] font-medium text-slate-400">Região {i + 1}</span>
+                              <button
+                                onClick={() => setSnapshots((s) => s.filter((_, j) => j !== i))}
+                                className="rounded-md p-1 text-slate-500 transition hover:bg-rose-500/10 hover:text-rose-300"
+                                aria-label={`Remover região ${i + 1}`}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </aside>
+            </div>
           </div>
         )}
       </Modal>

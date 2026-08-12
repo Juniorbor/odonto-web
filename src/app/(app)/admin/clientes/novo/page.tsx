@@ -62,7 +62,7 @@ export default function NewClientPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 px-4 py-8 sm:px-6">
+    <div className="mx-auto max-w-[1600px] space-y-6 px-6 py-8">
       <div className="anim-fade-up flex items-center gap-3">
         <Link href="/admin/clientes" className="rounded-lg border border-[#23345a] bg-[#0a1120] p-2 text-slate-400 transition hover:text-sky-300">
           <ArrowLeft className="h-4 w-4" />

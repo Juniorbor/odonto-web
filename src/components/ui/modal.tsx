@@ -50,16 +50,16 @@ export function Modal({
   } as Record<string, string>
 
   return (
-    <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[150] flex items-center justify-center p-2 sm:p-4">
       <div className="anim-fade-in absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
       <div
         className={cn(
-          "anim-scale-in relative z-10 flex max-h-[92vh] w-full flex-col overflow-hidden rounded-2xl border border-[#22335a] bg-[#0c1322] shadow-2xl",
+          "anim-scale-in relative z-10 flex max-h-[95dvh] w-full flex-col overflow-hidden rounded-2xl border border-[#22335a] bg-[#0c1322] shadow-2xl",
           sizes[size],
         )}
       >
         {(title || subtitle) && (
-          <div className="flex items-start justify-between gap-4 border-b border-[#1c2942] px-5 py-4">
+          <div className="flex items-start justify-between gap-4 border-b border-[#1c2942] px-4 py-3.5 sm:px-5 sm:py-4">
             <div>
               <h3 className="text-base font-semibold text-slate-100">{title}</h3>
               {subtitle && <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p>}
@@ -73,15 +73,16 @@ export function Modal({
             </button>
           </div>
         )}
-        <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
+        <div className="flex-1 overflow-y-auto px-4 py-3.5 sm:px-5 sm:py-4">{children}</div>
         {footer && (
-          <div className="flex items-center justify-end gap-3 border-t border-[#1c2942] bg-[#0a1120] px-5 py-3">
+          <div className="flex flex-wrap items-center justify-end gap-2.5 sm:gap-3 border-t border-[#1c2942] bg-[#0a1120] px-4 py-3 sm:px-5 sm:py-3">
             {footer}
           </div>
         )}
       </div>
     </div>
   )
+
 }
 
 export function ConfirmDialog({
