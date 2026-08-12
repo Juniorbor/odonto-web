@@ -3,8 +3,17 @@ import fs from "fs"
 import fsp from "fs/promises"
 import path from "path"
 import crypto from "crypto"
+import { getStore } from "@netlify/blobs"
 
 const ROOT = path.join(/*turbopackIgnore: true*/ process.cwd(), process.env.STORAGE_DIR || "storage")
+const USE_BLOBS = process.env.NETLIFY === "true"
+const BLOB_STORE = "laudos-files"
+
+let blobStore: ReturnType<typeof getStore> | null = null
+function blobApi() {
+  if (!blobStore) blobStore = getStore(BLOB_STORE)
+  return blobStore
+}
 
 export const ALLOWED_IMAGE_TYPES = new Set([
   "image/jpeg",
@@ -38,19 +47,33 @@ function safeRelative(...parts: string[]) {
 
 export async function saveFile(buffer: Buffer, options: { tenantId: string; subdir: string[]; filename?: string; ext?: string }) {
   const safeSubdir = safeRelative(options.tenantId, ...options.subdir)
-  const dirPath = path.join(ROOT, safeSubdir)
-  await fsp.mkdir(dirPath, { recursive: true })
-
   const name = options.filename ?? crypto.randomBytes(16).toString("hex")
   const ext = options.ext ? (options.ext.startsWith(".") ? options.ext : `.${options.ext}`) : ""
   const fileName = `${name}${ext}`
-  const relativePath = path.join(safeSubdir, fileName)
+  const relativePath = path.join(safeSubdir, fileName).replace(/\\/g, "/")
+
+  if (USE_BLOBS) {
+    const buf = new Uint8Array(buffer)
+    await blobApi().set(relativePath, buf as unknown as ArrayBuffer)
+    return relativePath
+  }
+
+  const dirPath = path.join(ROOT, safeSubdir)
+  await fsp.mkdir(dirPath, { recursive: true })
   await fsp.writeFile(path.join(ROOT, relativePath), buffer)
 
-  return relativePath.replace(/\\/g, "/")
+  return relativePath
 }
 
 export async function readFileBuffer(relativePath: string) {
+  if (USE_BLOBS) {
+    try {
+      const data = (await blobApi().get(relativePath, { type: "arrayBuffer" })) as ArrayBuffer | null
+      return data ? Buffer.from(data) : null
+    } catch {
+      return null
+    }
+  }
   const abs = path.join(ROOT, path.normalize(relativePath))
   if (!abs.startsWith(ROOT)) return null
   if (!fs.existsSync(abs)) return null
@@ -59,6 +82,14 @@ export async function readFileBuffer(relativePath: string) {
 
 export async function removeFile(relativePath?: string | null) {
   if (!relativePath) return
+  if (USE_BLOBS) {
+    try {
+      await blobApi().delete(relativePath)
+    } catch {
+      // blob já não existe
+    }
+    return
+  }
   const abs = path.join(ROOT, path.normalize(relativePath))
   if (!abs.startsWith(ROOT)) return
   try {
