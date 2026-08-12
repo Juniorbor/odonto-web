@@ -1,8 +1,8 @@
 "use client"
 
 import { useEffect, useRef, useState, useCallback } from "react"
-import { Circle, MousePointer2, PenTool, Save, Square, Trash2, Undo2, X, ZoomIn } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { Circle, Download, FileText, MousePointer2, PenTool, Save, Square, Trash2, Undo2, X, ZoomIn } from "lucide-react"
+import { cn, isImageRenderable } from "@/lib/utils"
 import { useToast } from "@/components/ui/toaster"
 import { Button } from "@/components/ui/button"
 
@@ -104,10 +104,11 @@ export function RadiographViewer({
 }: {
   open: boolean
   onClose: () => void
-  radiograph: { id: string; label: string | null; fileUrl: string }
+  radiograph: { id: string; label: string | null; fileUrl: string; mimeType?: string }
   title?: string
 }) {
   const { toast } = useToast()
+  const renderable = isImageRenderable(radiograph.mimeType)
   const [tool, setTool] = useState<Tool>("arrow")
   const [shapes, setShapes] = useState<ViewerShape[]>([])
   const [draft, setDraft] = useState<ViewerShape | null>(null)
@@ -328,14 +329,20 @@ export function RadiographViewer({
       <div className="flex items-center justify-between gap-3 border-b border-[#13203e] bg-[#0a1120] px-4 py-2.5">
         <div className="flex min-w-0 items-center gap-2">
           <span className="truncate text-sm font-semibold text-slate-100">{title || radiograph.label || "Radiografia"}</span>
-          <span className="hidden text-xs text-slate-500 md:inline">Clique e arraste sobre a imagem para anotar</span>
+          {renderable && (
+            <span className="hidden text-xs text-slate-500 md:inline">Clique e arraste sobre a imagem para anotar</span>
+          )}
         </div>
         <div className="flex items-center gap-2">
-          <ToolButton icon={Undo2} label="Desfazer (Ctrl+Z)" onClick={undo} disabled={shapes.length === 0} />
-          <ToolButton icon={Trash2} label="Limpar tudo" onClick={clear} disabled={shapes.length === 0} danger />
-          <Button className="ml-1 h-8 gap-1.5 px-3 text-xs" onClick={save} loading={saving}>
-            <Save className="h-3.5 w-3.5" /> Salvar
-          </Button>
+          {renderable && (
+            <>
+              <ToolButton icon={Undo2} label="Desfazer (Ctrl+Z)" onClick={undo} disabled={shapes.length === 0} />
+              <ToolButton icon={Trash2} label="Limpar tudo" onClick={clear} disabled={shapes.length === 0} danger />
+              <Button className="ml-1 h-8 gap-1.5 px-3 text-xs" onClick={save} loading={saving}>
+                <Save className="h-3.5 w-3.5" /> Salvar
+              </Button>
+            </>
+          )}
           <button
             onClick={closeWithSave}
             className="ml-1 rounded-lg p-1.5 text-slate-500 transition hover:bg-white/5 hover:text-slate-200"
@@ -346,6 +353,7 @@ export function RadiographViewer({
         </div>
       </div>
 
+      {renderable && (
       <div className="flex flex-wrap items-center gap-1.5 border-b border-[#13203e] bg-[#0a1120] px-4 py-2">
         {TOOLS.map((t) => {
           const Icon = TOOL_ICONS[t.id]
@@ -369,8 +377,11 @@ export function RadiographViewer({
           )
         })}
       </div>
+      )}
 
       <div ref={containerRef} className="relative flex-1 overflow-hidden">
+        {renderable ? (
+          <>
         <div className={cn("absolute inset-0 flex items-center justify-center transition-opacity duration-200", imgLoaded ? "opacity-100" : "opacity-0")}>
           <img
             ref={imgRef}
@@ -407,6 +418,24 @@ export function RadiographViewer({
 
         {loaded && !imgLoaded && (
           <div className="absolute inset-0 flex items-center justify-center text-sm text-slate-500">Carregando imagem...</div>
+        )}
+          </>
+        ) : (
+          <div className="flex h-full flex-col items-center justify-center gap-4 px-6 text-center">
+            <FileText className="h-14 w-14 text-slate-600" />
+            <div>
+              <p className="text-base font-semibold text-slate-200">
+                {radiograph.mimeType === "application/pdf" ? "Documento PDF" : radiograph.mimeType === "image/dicom" ? "Imagem DICOM" : "Arquivo"}
+              </p>
+              <p className="mt-1 text-sm text-slate-500">Este formato não pode ser anotado. Baixe o arquivo original abaixo.</p>
+            </div>
+            <a
+              href={`${radiograph.fileUrl}?download=1`}
+              className="inline-flex items-center gap-2 rounded-xl bg-sky-500 px-4 py-2.5 text-sm font-medium text-white shadow-[0_4px_20px_-4px_rgba(14,165,233,0.5)] transition hover:bg-sky-400"
+            >
+              <Download className="h-4 w-4" /> Baixar arquivo
+            </a>
+          </div>
         )}
       </div>
     </div>

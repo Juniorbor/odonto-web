@@ -2,14 +2,15 @@
 
 import { Fragment, useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode, type PointerEvent as ReactPointerEvent } from "react"
 import { useSearchParams } from "next/navigation"
-import { ArrowUpRight, Camera, CalendarDays, Check, Circle, FileUp, Minus, MousePointer2, Pencil, Save, Spline, Square, Trash2, Stethoscope, Undo2, ZoomIn } from "lucide-react"
+import { ArrowUpRight, Camera, CalendarDays, Check, Circle, Download, FileText, FileUp, Minus, MousePointer2, Pencil, Save, Spline, Square, Trash2, Stethoscope, Undo2, ZoomIn } from "lucide-react"
 import { Card, CardBody } from "@/components/ui/card"
 import { EmptyState } from "@/components/ui/feedback"
 import { Button } from "@/components/ui/button"
 import { Input, Textarea, Select, Field } from "@/components/ui/input"
 import { Modal, ConfirmDialog } from "@/components/ui/modal"
 import { useToast } from "@/components/ui/toaster"
-import { cn, formatDate } from "@/lib/utils"
+import { cn, formatDate, isImageRenderable } from "@/lib/utils"
+import { uploadWithChunks, formatBytes, CLIENT_MAX_UPLOAD } from "@/lib/client-upload"
 
 const EXAM_TYPES = [
   { value: "PANORAMICA", label: "Panorâmica" },
@@ -651,20 +652,21 @@ export function RadiographsPage({ patients }: { patients: { id: string; fullName
 
   const onUpload = async () => {
     if (!file || !formPatient || saving) return
+    if (file.size > CLIENT_MAX_UPLOAD) {
+      toast("Arquivo excede o limite de 25MB.", "error")
+      return
+    }
     setSaving(true)
     try {
-      const fd = new FormData()
-      fd.append("file", file)
-      fd.append("patientId", formPatient)
-      fd.append("examType", formExam)
-      if (formLabel.trim()) fd.append("label", formLabel.trim())
-      if (formNotes.trim()) fd.append("notes", formNotes.trim())
-      if (formTakenAt) fd.append("takenAt", formTakenAt)
-
-      const res = await fetch("/api/app/radiographs", { method: "POST", body: fd })
-      const data = await res.json()
+      const res = await uploadWithChunks("/api/app/radiographs", file, () => ({
+        patientId: formPatient,
+        examType: formExam,
+        label: formLabel.trim(),
+        notes: formNotes.trim(),
+        takenAt: formTakenAt,
+      }))
       if (!res.ok) {
-        toast(data?.error ?? "Erro ao enviar arquivo.", "error")
+        toast(res.error ?? "Erro ao enviar arquivo.", "error")
         return
       }
       toast("Radiografia enviada com sucesso.", "success")
@@ -749,12 +751,21 @@ export function RadiographsPage({ patients }: { patients: { id: string; fullName
                 onClick={() => setViewing(r)}
                 className="block aspect-[4/3] w-full bg-[#0b1220]"
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={r.url}
-                  alt={r.label || r.patient.fullName}
-                  className="h-full w-full object-contain transition group-hover:opacity-90"
-                />
+                {isImageRenderable(r.mimeType) ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={r.url}
+                    alt={r.label || r.patient.fullName}
+                    className="h-full w-full object-contain transition group-hover:opacity-90"
+                  />
+                ) : (
+                  <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-slate-600">
+                    <FileText className="h-10 w-10" />
+                    <span className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
+                      {r.mimeType === "application/pdf" ? "PDF" : r.mimeType === "image/dicom" ? "DICOM" : "Arquivo"}
+                    </span>
+                  </div>
+                )}
               </button>
               <CardBody className="p-4">
                 <div className="flex items-start justify-between gap-2">
@@ -764,13 +775,23 @@ export function RadiographsPage({ patients }: { patients: { id: string; fullName
                     </p>
                     <p className="mt-0.5 truncate text-xs text-slate-500">{r.patient.fullName}</p>
                   </div>
-                  <button
-                    onClick={() => setDeleting(r)}
-                    className="rounded-lg p-1.5 text-slate-600 transition hover:bg-rose-500/10 hover:text-rose-300"
-                    aria-label="Excluir"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <a
+                      href={`${r.url}?download=1`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="rounded-lg p-1.5 text-slate-600 transition hover:bg-sky-500/10 hover:text-sky-300"
+                      title="Baixar arquivo original"
+                    >
+                      <Download className="h-4 w-4" />
+                    </a>
+                    <button
+                      onClick={() => setDeleting(r)}
+                      className="rounded-lg p-1.5 text-slate-600 transition hover:bg-rose-500/10 hover:text-rose-300"
+                      aria-label="Excluir"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
                 <p className="mt-2 inline-flex items-center gap-1 text-[11px] text-slate-600">
                   <CalendarDays className="h-3 w-3" /> {formatDate(r.takenAt)}
@@ -808,7 +829,10 @@ export function RadiographsPage({ patients }: { patients: { id: string; fullName
             <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-[#23345a] bg-[#0a1120] px-4 py-8 text-sm text-slate-400 transition hover:border-sky-600/50 hover:text-sky-300">
               <Camera className="h-8 w-8 text-slate-600" />
               {file ? (
-                <span className="max-w-full truncate text-sky-300">{file.name}</span>
+                <span className="flex max-w-full flex-col items-center gap-0.5 text-center">
+                  <span className="max-w-full truncate text-sky-300">{file.name}</span>
+                  <span className="text-xs text-slate-500">{formatBytes(file.size)}</span>
+                </span>
               ) : (
                 <span>Clique para selecionar o arquivo</span>
               )}
@@ -880,12 +904,16 @@ export function RadiographsPage({ patients }: { patients: { id: string; fullName
         size="full"
         footer={
           <div className="flex items-center gap-2">
-            <Button onClick={saveViewer} loading={savingAnn} className="gap-1.5">
-              <Save className="h-4 w-4" /> Salvar trabalho
-            </Button>
-            <Button variant="ghost" onClick={exportAnnotated} loading={exporting} disabled={shapes.length === 0} className="gap-1.5">
-              <FileUp className="h-4 w-4" /> Exportar PNG
-            </Button>
+            {viewing && isImageRenderable(viewing.mimeType) && (
+              <>
+                <Button onClick={saveViewer} loading={savingAnn} className="gap-1.5">
+                  <Save className="h-4 w-4" /> Salvar trabalho
+                </Button>
+                <Button variant="ghost" onClick={exportAnnotated} loading={exporting} disabled={shapes.length === 0} className="gap-1.5">
+                  <FileUp className="h-4 w-4" /> Exportar PNG
+                </Button>
+              </>
+            )}
             <Button variant="ghost" onClick={closeViewer}>
               Fechar
             </Button>
@@ -894,6 +922,25 @@ export function RadiographsPage({ patients }: { patients: { id: string; fullName
       >
         {viewing && (
           <div className="space-y-4">
+            {!isImageRenderable(viewing.mimeType) ? (
+              <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-[#16213a] bg-[#0a1120] px-6 py-16 text-center">
+                <FileText className="h-12 w-12 text-slate-600" />
+                <div>
+                  <p className="text-base font-semibold text-slate-200">
+                    {viewing.mimeType === "application/pdf" ? "Documento PDF" : viewing.mimeType === "image/dicom" ? "Imagem DICOM" : "Arquivo"}
+                  </p>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Este formato não pode ser anotado nesta tela. Baixe o arquivo original abaixo.
+                  </p>
+                </div>
+                <a
+                  href={`${viewing.url}?download=1`}
+                  className="inline-flex items-center gap-2 rounded-xl bg-sky-500 px-4 py-2.5 text-sm font-medium text-white shadow-[0_4px_20px_-4px_rgba(14,165,233,0.5)] transition hover:bg-sky-400"
+                >
+                  <Download className="h-4 w-4" /> Baixar arquivo
+                </a>
+              </div>
+            ) : (
             <div className="flex flex-col gap-4 xl:flex-row">
               <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center justify-center gap-1.5 rounded-2xl border border-[#16213a] bg-[#0a1120] p-2">
@@ -1236,6 +1283,7 @@ export function RadiographsPage({ patients }: { patients: { id: string; fullName
                 </div>
               </aside>
             </div>
+            )}
           </div>
         )}
       </Modal>

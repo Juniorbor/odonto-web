@@ -56,6 +56,12 @@ export function pluralize(count: number, singular: string, plural?: string) {
   return count === 1 ? singular : (plural ?? singular + "s")
 }
 
+/** True quando o navegador consegue exibir o arquivo num <img> (DICOM e PDF não). */
+export function isImageRenderable(mime: string | null | undefined) {
+  if (!mime) return true
+  return mime.startsWith("image/") && mime !== "image/dicom"
+}
+
 export function initials(name: string) {
   return name
     .split(" ")

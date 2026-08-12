@@ -35,7 +35,7 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
         },
       },
       documents: { orderBy: { createdAt: "desc" }, take: 5, select: { id: true, title: true, type: true, createdAt: true } },
-      radiographs: { orderBy: { createdAt: "desc" }, take: 5, select: { id: true, label: true, takenAt: true } },
+      radiographs: { orderBy: { createdAt: "desc" }, take: 5, select: { id: true, label: true, takenAt: true, mimeType: true } },
       patientImages: { orderBy: { createdAt: "desc" }, take: 5, select: { id: true, category: true, label: true, takenAt: true } },
       _count: {
         select: { appointments: true, clinicalRecords: true, documents: true, radiographs: true, odontograms: true, patientImages: true },
@@ -73,7 +73,7 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
         user: c.user,
       }))}
       documents={documents.map((d) => ({ id: d.id, title: d.title, type: d.type, createdAt: d.createdAt.toISOString() }))}
-      radiographs={radiographs.map((r) => ({ id: r.id, label: r.label, takenAt: r.takenAt.toISOString() }))}
+      radiographs={radiographs.map((r) => ({ id: r.id, label: r.label, takenAt: r.takenAt.toISOString(), mimeType: r.mimeType }))}
       patientImages={patientImages.map((i) => ({
         id: i.id,
         category: i.category,

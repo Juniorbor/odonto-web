@@ -12,6 +12,7 @@ import { useToast } from "@/components/ui/toaster"
 import { formatDate } from "@/lib/utils"
 import { EXTRAORAL_LABELS, INTRAORAL_LABELS } from "@/lib/constants"
 import { cn } from "@/lib/utils"
+import { uploadWithChunks, formatBytes, CLIENT_MAX_UPLOAD } from "@/lib/client-upload"
 
 const CATEGORY_TABS = [
   { value: "all", label: "Todas" },
@@ -90,20 +91,21 @@ export function ImagesPage({ patients }: { patients: { id: string; fullName: str
 
   const onUpload = async () => {
     if (!file || !formPatient || saving) return
+    if (file.size > CLIENT_MAX_UPLOAD) {
+      toast("Arquivo excede o limite de 25MB.", "error")
+      return
+    }
     setSaving(true)
     try {
-      const fd = new FormData()
-      fd.append("file", file)
-      fd.append("patientId", formPatient)
-      fd.append("category", formCategory)
-      if (formLabel.trim()) fd.append("label", formLabel.trim())
-      if (formNotes.trim()) fd.append("notes", formNotes.trim())
-      if (formTakenAt) fd.append("takenAt", formTakenAt)
-
-      const res = await fetch("/api/app/images", { method: "POST", body: fd })
-      const data = await res.json()
+      const res = await uploadWithChunks("/api/app/images", file, () => ({
+        patientId: formPatient,
+        category: formCategory,
+        label: formLabel.trim(),
+        notes: formNotes.trim(),
+        takenAt: formTakenAt,
+      }))
       if (!res.ok) {
-        toast(data?.error ?? "Erro ao enviar arquivo.", "error")
+        toast(res.error ?? "Erro ao enviar arquivo.", "error")
         return
       }
       toast("Fotografia enviada com sucesso.", "success")
@@ -129,15 +131,13 @@ export function ImagesPage({ patients }: { patients: { id: string; fullName: str
     }
     setCapturing(true)
     try {
-      const fd = new FormData()
-      fd.append("file", file)
-      fd.append("patientId", patientId)
-      fd.append("category", categoryFilter === "EXTRAORAL" ? "EXTRAORAL" : "INTRAORAL")
-      fd.append("takenAt", new Date().toISOString().slice(0, 10))
-      const res = await fetch("/api/app/images", { method: "POST", body: fd })
-      const data = await res.json()
+      const res = await uploadWithChunks("/api/app/images", file, () => ({
+        patientId,
+        category: categoryFilter === "EXTRAORAL" ? "EXTRAORAL" : "INTRAORAL",
+        takenAt: new Date().toISOString().slice(0, 10),
+      }))
       if (!res.ok) {
-        toast(data?.error ?? "Erro ao enviar a foto.", "error")
+        toast(res.error ?? "Erro ao enviar a foto.", "error")
         return
       }
       toast("Foto tirada e enviada com sucesso.", "success")
@@ -357,7 +357,10 @@ export function ImagesPage({ patients }: { patients: { id: string; fullName: str
             <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-[#23345a] bg-[#0a1120] px-4 py-8 text-sm text-slate-400 transition hover:border-sky-600/50 hover:text-sky-300">
               <Camera className="h-8 w-8 text-slate-600" />
               {file ? (
-                <span className="max-w-full truncate text-sky-300">{file.name}</span>
+                <span className="flex max-w-full flex-col items-center gap-0.5 text-center">
+                  <span className="max-w-full truncate text-sky-300">{file.name}</span>
+                  <span className="text-xs text-slate-500">{formatBytes(file.size)}</span>
+                </span>
               ) : (
                 <span>Clique para selecionar a foto</span>
               )}

@@ -5,11 +5,11 @@ import { logAction } from "@/lib/audit"
 import {
   saveFile,
   removeFile,
-  ALLOWED_IMAGE_TYPES,
-  MAX_UPLOAD_SIZE,
   fileExtensionFromMime,
-  detectMimeSignature,
+  resolveUploadMime,
 } from "@/lib/storage"
+import { receiveChunkedUpload } from "@/lib/chunked-upload"
+import { parseLocalDate } from "@/lib/utils"
 import { ExamType } from "@prisma/client"
 
 export async function GET(req: NextRequest) {
@@ -59,18 +59,15 @@ export async function POST(req: NextRequest) {
   const form = await req.formData().catch(() => null)
   if (!form) return NextResponse.json({ error: "Formato inválido." }, { status: 400 })
 
-  const file = form.get("file")
-  if (!(file instanceof File)) return NextResponse.json({ error: "Arquivo obrigatório." }, { status: 400 })
-
-  if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
-    return NextResponse.json({ error: "Formato de arquivo não permitido." }, { status: 400 })
-  }
-  if (file.size > MAX_UPLOAD_SIZE) {
-    return NextResponse.json({ error: "Arquivo excede o limite de 25MB." }, { status: 400 })
-  }
-
   const patientId = String(form.get("patientId") || "")
   if (!patientId) return NextResponse.json({ error: "Paciente obrigatório." }, { status: 400 })
+
+  const received = await receiveChunkedUpload(ctx.tenantId, form)
+  if (!received.done) {
+    if (received.waiting) return NextResponse.json({ ok: true, waiting: received.waiting })
+    return NextResponse.json({ error: received.error }, { status: received.status ?? 400 })
+  }
+  const buffer = received.buffer!
 
   const patient = await prisma.patient.findFirst({ where: { id: patientId, clinicId: ctx.clinicId } })
   if (!patient) return NextResponse.json({ error: "Paciente não encontrado." }, { status: 404 })
@@ -79,11 +76,10 @@ export async function POST(req: NextRequest) {
   const examType = Object.values(ExamType).includes(examTypeRaw as ExamType) ? (examTypeRaw as ExamType) : ExamType.OUTRO
   const label = String(form.get("label") || "").trim().slice(0, 190) || undefined
   const notes = String(form.get("notes") || "").trim().slice(0, 2000) || undefined
-  const takenAt = form.get("takenAt") ? new Date(String(form.get("takenAt"))) : new Date()
+  const takenAt = parseLocalDate(String(form.get("takenAt") || "")) ?? new Date()
 
-  const buffer = Buffer.from(await file.arrayBuffer())
-  const detectedMime = detectMimeSignature(buffer, file.type)
-  if (!detectedMime) return NextResponse.json({ error: "Arquivo corrompido ou formato inválido." }, { status: 400 })
+  const detectedMime = resolveUploadMime(fileNameFromForm(form), fileTypeFromForm(form), buffer)
+  if (!detectedMime) return NextResponse.json({ error: "Formato de arquivo não permitido." }, { status: 400 })
 
   const originalPath = await saveFile(buffer, {
     tenantId: ctx.tenantId,
@@ -100,7 +96,7 @@ export async function POST(req: NextRequest) {
         label,
         originalPath,
         mimeType: detectedMime,
-        sizeBytes: file.size,
+        sizeBytes: buffer.length,
         takenAt,
         notes,
         userId: ctx.user.id,
@@ -114,7 +110,7 @@ export async function POST(req: NextRequest) {
       action: "radiograph.create",
       entityType: "Radiograph",
       entityId: radiograph.id,
-      details: { patientId, examType, sizeBytes: file.size },
+      details: { patientId, examType, sizeBytes: buffer.length },
     })
 
     return NextResponse.json({ ok: true, id: radiograph.id })
@@ -123,4 +119,14 @@ export async function POST(req: NextRequest) {
     console.error("Radiograph create error:", e)
     return NextResponse.json({ error: "Erro ao salvar radiografia." }, { status: 500 })
   }
+}
+
+function fileNameFromForm(form: FormData) {
+  const file = form.get("chunk") ?? form.get("file")
+  return file instanceof File ? file.name : ""
+}
+
+function fileTypeFromForm(form: FormData) {
+  const file = form.get("chunk") ?? form.get("file")
+  return file instanceof File ? file.type : ""
 }

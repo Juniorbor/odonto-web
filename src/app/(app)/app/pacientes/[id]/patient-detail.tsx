@@ -28,6 +28,7 @@ import { useToast } from "@/components/ui/toaster"
 import { EmptyState } from "@/components/ui/feedback"
 import { RadiographViewer } from "@/components/radiograph-viewer"
 import { formatDate, formatCpf, formatPhone, calculateAge, initials, todayInput } from "@/lib/utils"
+import { uploadWithChunks } from "@/lib/client-upload"
 
 type PatientData = {
   id: string
@@ -72,7 +73,7 @@ type RecordRow = {
 }
 
 type DocRow = { id: string; title: string; type: string; createdAt: string }
-type RadioRow = { id: string; label: string | null; takenAt: string }
+type RadioRow = { id: string; label: string | null; takenAt: string; mimeType: string }
 type PhotoRow = { id: string; category: string; label: string | null; takenAt: string }
 type HistRow = {
   id: string
@@ -127,7 +128,7 @@ export function PatientDetail({
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
-  const [viewer, setViewer] = useState<{ id: string; label: string | null; fileUrl: string } | null>(null)
+  const [viewer, setViewer] = useState<{ id: string; label: string | null; fileUrl: string; mimeType?: string } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const captureInputRef = useRef<HTMLInputElement>(null)
   const [form, setForm] = useState({
@@ -195,14 +196,12 @@ export function PatientDetail({
   const capturePhoto = async (file: File) => {
     setUploadingPhoto(true)
     try {
-      const formData = new FormData()
-      formData.append("file", file)
-      formData.append("patientId", patient.id)
-      formData.append("category", "INTRAORAL")
-      formData.append("takenAt", new Date().toISOString().slice(0, 10))
-      const res = await fetch("/api/app/images", { method: "POST", body: formData })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || "Erro no upload.")
+      const res = await uploadWithChunks("/api/app/images", file, () => ({
+        patientId: patient.id,
+        category: "INTRAORAL",
+        takenAt: new Date().toISOString().slice(0, 10),
+      }))
+      if (!res.ok) throw new Error(res.error || "Erro no upload.")
       toast("Foto enviada para a galeria. Categoria pode ser editada em Fotografias.", "success")
       router.refresh()
     } catch (e) {
@@ -217,14 +216,12 @@ export function PatientDetail({
   const uploadRadiograph = async (file: File) => {
     setUploading(true)
     try {
-      const formData = new FormData()
-      formData.append("file", file)
-      formData.append("patientId", patient.id)
-      formData.append("examType", "PANORAMICA")
-      formData.append("label", "Panorâmica")
-      const res = await fetch("/api/app/radiographs", { method: "POST", body: formData })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || "Erro no upload.")
+      const res = await uploadWithChunks("/api/app/radiographs", file, () => ({
+        patientId: patient.id,
+        examType: "PANORAMICA",
+        label: "Panorâmica",
+      }))
+      if (!res.ok) throw new Error(res.error || "Erro no upload.")
       toast("Radiografia panorâmica enviada.", "success")
       router.refresh()
     } catch (e) {
@@ -502,7 +499,7 @@ export function PatientDetail({
                             variant="ghost"
                             size="sm"
                             className="h-7 px-2 text-[11px] text-sky-300 hover:text-sky-200"
-                            onClick={() => setViewer({ id: r.id, label: r.label, fileUrl: `/api/app/radiographs/${r.id}/file` })}
+                            onClick={() => setViewer({ id: r.id, label: r.label, fileUrl: `/api/app/radiographs/${r.id}/file`, mimeType: r.mimeType })}
                           >
                             <Eye className="h-3.5 w-3.5" /> Anotar
                           </Button>
