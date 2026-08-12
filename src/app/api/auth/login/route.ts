@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { verifyPassword, createSessionToken, setSessionCookie, requestIsSecure } from "@/lib/auth"
+import { verifyPassword, createSessionToken, setSessionCookie, setImpersonationCookie, requestIsSecure } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { logAction } from "@/lib/audit"
 import { z } from "zod"
@@ -44,10 +44,23 @@ export async function POST(req: NextRequest) {
     }
 
     const token = await createSessionToken(user.id)
+    const secure = requestIsSecure(req)
     await setSessionCookie(token, {
-      secure: requestIsSecure(req),
+      secure,
       maxAge: remember === false ? TWELVE_HOURS : SEVEN_DAYS,
     })
+
+    if (user.role === "ADMIN_MASTER") {
+      const clinicCount = await prisma.clinic.count()
+      if (clinicCount === 1) {
+        const clinic = await prisma.clinic.findFirst({
+          select: { id: true, tenant: { select: { status: true } } },
+        })
+        if (clinic && ["ACTIVE", "TRIAL"].includes(clinic.tenant.status)) {
+          await setImpersonationCookie(clinic.id, { secure })
+        }
+      }
+    }
 
     await prisma.user.update({
       where: { id: user.id },
