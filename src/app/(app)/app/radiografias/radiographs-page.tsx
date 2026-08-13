@@ -993,6 +993,9 @@ export function RadiographsPage({ patients }: { patients: { id: string; fullName
             <div className="flex flex-col gap-4 xl:flex-row">
               <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center justify-center gap-1.5 rounded-2xl border border-[#16213a] bg-[#0a1120] p-2">
+              <span className="mr-1 select-none text-[10px] font-semibold uppercase tracking-widest text-sky-400/60" title="Versão do visualizador (v3 = captura automática ativa)">
+                v3
+              </span>
               {TOOLS.map((t) => (
                 <button
                   key={t.id}
