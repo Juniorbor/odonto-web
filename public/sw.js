@@ -1,4 +1,4 @@
-const CACHE_NAME = "odontoweb-v1";
+const CACHE_NAME = "odontoweb-v2";
 const STATIC_ASSETS = [
   "/",
   "/manifest.json",
