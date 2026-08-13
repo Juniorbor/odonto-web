@@ -433,32 +433,44 @@ export function RadiographsPage({ patients }: { patients: { id: string; fullName
     })
 
   const captureRegion = async (p: Pt) => {
-    if (!viewing || capturingRef.current) return
+    if (!viewing) {
+      toast("Abra uma radiografia para capturar a região.", "error")
+      return
+    }
+    if (capturingRef.current) return
     const img = imgRef.current
-    if (!img) return
-    if (!(img.complete && img.naturalWidth > 0)) {
-      capturingRef.current = true
-      toast("A imagem ainda está carregando. A região será capturada automaticamente quando terminar.", "info")
-      const ready = await waitForImage(img)
-      capturingRef.current = false
-      if (!ready) {
-        toast("A imagem não pôde ser carregada para captura. Verifique o arquivo da radiografia.", "error")
+    if (!img) {
+      toast("Não foi possível localizar a imagem da radiografia.", "error")
+      return
+    }
+    try {
+      if (!(img.complete && img.naturalWidth > 0)) {
+        capturingRef.current = true
+        toast("A imagem ainda está carregando. A região será capturada automaticamente quando terminar.", "info")
+        const ready = await waitForImage(img)
+        if (!ready) {
+          toast("A imagem não pôde ser carregada para captura. Verifique o arquivo da radiografia.", "error")
+          return
+        }
+      }
+      const rect = img.getBoundingClientRect()
+      if (!rect.width || !rect.height) {
+        toast("Não foi possível calcular a região da imagem. Tente novamente.", "error")
         return
       }
-    }
-    const rect = img.getBoundingClientRect()
-    if (!rect.width || !rect.height) return
-    const region = MAG / ZOOM
-    const x = Math.max(0, Math.min(p.x - region / 2, rect.width - region))
-    const y = Math.max(0, Math.min(p.y - region / 2, rect.height - region))
-    const scale = img.naturalWidth / rect.width
-    const OUT = 512
-    const canvas = document.createElement("canvas")
-    canvas.width = OUT
-    canvas.height = OUT
-    const ctx = canvas.getContext("2d")
-    if (!ctx) return
-    try {
+      const region = MAG / ZOOM
+      const x = Math.max(0, Math.min(p.x - region / 2, rect.width - region))
+      const y = Math.max(0, Math.min(p.y - region / 2, rect.height - region))
+      const scale = img.naturalWidth / rect.width
+      const OUT = 512
+      const canvas = document.createElement("canvas")
+      canvas.width = OUT
+      canvas.height = OUT
+      const ctx = canvas.getContext("2d")
+      if (!ctx) {
+        toast("Não foi possível processar a captura. Tente novamente.", "error")
+        return
+      }
       ctx.imageSmoothingEnabled = true
       ctx.drawImage(img, x * scale, y * scale, region * scale, region * scale, 0, 0, OUT, OUT)
       const url = canvas.toDataURL("image/png")
@@ -466,7 +478,9 @@ export function RadiographsPage({ patients }: { patients: { id: string; fullName
       toast("Região ampliada adicionada ao lado direito.", "success")
     } catch (e) {
       console.error("Falha ao capturar região ampliada:", e)
-      toast("Não foi possível capturar a região ampliada.", "error")
+      toast("Não foi possível capturar a região ampliada. Tente novamente.", "error")
+    } finally {
+      capturingRef.current = false
     }
   }
 

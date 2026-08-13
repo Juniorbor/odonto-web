@@ -235,43 +235,52 @@ export function RadiographViewer({
 
   const captureRegion = async (clientX: number, clientY: number) => {
     const img = imgRef.current
-    if (!img || capturePendingRef.current) return
-    if (!(img.complete && img.naturalWidth > 0)) {
-      capturePendingRef.current = true
-      const ready = await new Promise<boolean>((resolve) => {
-        if (img.complete) return resolve(img.naturalWidth > 0)
-        let settled = false
-        const done = (ok: boolean) => {
-          if (settled) return
-          settled = true
-          img.removeEventListener("load", onLoad)
-          img.removeEventListener("error", onError)
-          resolve(ok)
+    if (!img) {
+      toast("Não foi possível localizar a imagem da radiografia.", "error")
+      return
+    }
+    if (capturePendingRef.current) return
+    try {
+      if (!(img.complete && img.naturalWidth > 0)) {
+        capturePendingRef.current = true
+        const ready = await new Promise<boolean>((resolve) => {
+          if (img.complete) return resolve(img.naturalWidth > 0)
+          let settled = false
+          const done = (ok: boolean) => {
+            if (settled) return
+            settled = true
+            img.removeEventListener("load", onLoad)
+            img.removeEventListener("error", onError)
+            resolve(ok)
+          }
+          const onLoad = () => done(img.naturalWidth > 0)
+          const onError = () => done(false)
+          img.addEventListener("load", onLoad)
+          img.addEventListener("error", onError)
+          setTimeout(() => done(img.complete && img.naturalWidth > 0), 45000)
+        })
+        if (!ready) {
+          toast("A imagem não pôde ser carregada para captura. Verifique o arquivo da radiografia.", "error")
+          return
         }
-        const onLoad = () => done(img.naturalWidth > 0)
-        const onError = () => done(false)
-        img.addEventListener("load", onLoad)
-        img.addEventListener("error", onError)
-        setTimeout(() => done(img.complete && img.naturalWidth > 0), 45000)
-      })
-      capturePendingRef.current = false
-      if (!ready) {
-        toast("A imagem não pôde ser carregada para captura. Verifique o arquivo da radiografia.", "error")
+      }
+      const c = toImageCoords(clientX, clientY)
+      if (!c) {
+        toast("Não foi possível calcular a região da imagem. Tente novamente.", "error")
         return
       }
-    }
-    const c = toImageCoords(clientX, clientY)
-    if (!c) return
-    const region = Math.min((MAG / ZOOM) * c.scale, img.naturalWidth, img.naturalHeight)
-    const x = Math.max(0, Math.min(c.x - region / 2, img.naturalWidth - region))
-    const y = Math.max(0, Math.min(c.y - region / 2, img.naturalHeight - region))
-    const OUT = 512
-    const canvas = document.createElement("canvas")
-    canvas.width = OUT
-    canvas.height = OUT
-    const ctx = canvas.getContext("2d")
-    if (!ctx) return
-    try {
+      const region = Math.min((MAG / ZOOM) * c.scale, img.naturalWidth, img.naturalHeight)
+      const x = Math.max(0, Math.min(c.x - region / 2, img.naturalWidth - region))
+      const y = Math.max(0, Math.min(c.y - region / 2, img.naturalHeight - region))
+      const OUT = 512
+      const canvas = document.createElement("canvas")
+      canvas.width = OUT
+      canvas.height = OUT
+      const ctx = canvas.getContext("2d")
+      if (!ctx) {
+        toast("Não foi possível processar a captura. Tente novamente.", "error")
+        return
+      }
       ctx.imageSmoothingEnabled = true
       ctx.drawImage(img, x, y, region, region, 0, 0, OUT, OUT)
       const url = canvas.toDataURL("image/png")
@@ -279,7 +288,9 @@ export function RadiographViewer({
       toast("Região ampliada adicionada ao lado direito.", "success")
     } catch (e) {
       console.error("Falha ao capturar região ampliada:", e)
-      toast("Não foi possível capturar a região ampliada.", "error")
+      toast("Não foi possível capturar a região ampliada. Tente novamente.", "error")
+    } finally {
+      capturePendingRef.current = false
     }
   }
 
