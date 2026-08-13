@@ -118,8 +118,10 @@ export function AgendaPage({
     try {
       const start = firstDayOfWeek(anchorKey)
       const end = addDays(start, 7)
-      const from = `${start}T00:00:00`
-      const to = `${end}T23:59:59`
+      const [sy, sm, sd] = start.split("-").map(Number)
+      const [ey, em, ed] = end.split("-").map(Number)
+      const from = new Date(sy, sm - 1, sd, 0, 0, 0).toISOString()
+      const to = new Date(ey, em - 1, ed, 23, 59, 59).toISOString()
       const res = await fetch(`/api/app/appointments?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`)
       const data = await res.json()
       if (res.ok) setAppointments(data.appointments)
@@ -136,8 +138,8 @@ export function AgendaPage({
     setCalendarLoading(true)
     try {
       const [y, m] = month.split("-").map(Number)
-      const from = `${month}-01T00:00:00`
-      const to = `${toKey(new Date(y, m, 1))}T00:00:00`
+      const from = new Date(y, m - 1, 1, 0, 0, 0).toISOString()
+      const to = new Date(y, m, 1, 0, 0, 0).toISOString()
       const res = await fetch(`/api/app/appointments?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`)
       const data = await res.json()
       if (res.ok) {
@@ -228,8 +230,15 @@ export function AgendaPage({
     }
     const startMin = (hh || 0) * 60 + (mm || 0)
     const dur = Math.max(15, Number(form.duration) || 30)
-    const startsAt = `${formDate}T${timeFmt(startMin)}:00`
-    const endsAt = `${formDate}T${timeFmt(startMin + dur)}:00`
+    const startDt = new Date(
+      Number(formDate.slice(0, 4)),
+      Number(formDate.slice(5, 7)) - 1,
+      Number(formDate.slice(8, 10)),
+      hh || 0,
+      mm || 0,
+    )
+    const startsAt = startDt.toISOString()
+    const endsAt = new Date(startDt.getTime() + dur * 60000).toISOString()
     const payload = {
       patientId: form.patientId,
       professionalId: form.professionalId || undefined,
@@ -669,8 +678,8 @@ export function AgendaPage({
                   {detail.patient.fullName}
                 </Link>
                 <p className="text-xs text-slate-500">
-                  {formatDate(detail.startsAt.slice(0, 10))} · {detail.startsAt.slice(11, 16)}
-                  {detail.endsAt ? `–${detail.endsAt.slice(11, 16)}` : ""}
+                  {formatDate(toKey(new Date(detail.startsAt)))} · {timeFmt(minutesOf(detail.startsAt))}
+                  {detail.endsAt ? `–${timeFmt(minutesOf(detail.endsAt))}` : ""}
                 </p>
               </div>
               <Badge tone={STATUS_META[detail.status].tone}>{STATUS_META[detail.status].label}</Badge>
@@ -731,7 +740,7 @@ export function AgendaPage({
         onClose={() => setCancelling(null)}
         onConfirm={confirmCancel}
         title="Cancelar atendimento"
-        message={`Deseja cancelar o atendimento de ${cancelling?.patient.fullName} às ${cancelling?.startsAt.slice(11, 16)}?`}
+        message={`Deseja cancelar o atendimento de ${cancelling?.patient.fullName} às ${cancelling ? timeFmt(minutesOf(cancelling.startsAt)) : ""}?`}
         confirmLabel={saving ? "Cancelando..." : "Cancelar atendimento"}
         danger
       />
