@@ -125,6 +125,7 @@ export function RadiographViewer({
   const lensRef = useRef<HTMLDivElement>(null)
   const drawingRef = useRef(false)
   const startRef = useRef<{ x: number; y: number } | null>(null)
+  const zoomGuardRef = useRef(0)
   const shapesRef = useRef<ViewerShape[]>([])
   const dirtyRef = useRef(false)
   const closingRef = useRef(false)
@@ -155,6 +156,12 @@ export function RadiographViewer({
 
   const onPointerDown = (e: React.PointerEvent) => {
     if (tool === "lupa") {
+      const now = Date.now()
+      if (now - zoomGuardRef.current < 350) {
+        zoomGuardRef.current = now
+        return
+      }
+      zoomGuardRef.current = now
       captureRegion(e.clientX, e.clientY)
       return
     }
@@ -228,7 +235,10 @@ export function RadiographViewer({
   const captureRegion = (clientX: number, clientY: number) => {
     const img = imgRef.current
     const c = toImageCoords(clientX, clientY)
-    if (!img || !c || !img.complete || !img.naturalWidth) return
+    if (!img || !c || !img.complete || !img.naturalWidth) {
+      toast("A imagem ainda está carregando. Tente novamente em instantes.", "error")
+      return
+    }
     const region = Math.min((MAG / ZOOM) * c.scale, img.naturalWidth, img.naturalHeight)
     const x = Math.max(0, Math.min(c.x - region / 2, img.naturalWidth - region))
     const y = Math.max(0, Math.min(c.y - region / 2, img.naturalHeight - region))
@@ -238,11 +248,16 @@ export function RadiographViewer({
     canvas.height = OUT
     const ctx = canvas.getContext("2d")
     if (!ctx) return
-    ctx.imageSmoothingEnabled = true
-    ctx.drawImage(img, x, y, region, region, 0, 0, OUT, OUT)
-    const url = canvas.toDataURL("image/png")
-    setSnapshots((s) => [...s, url])
-    toast("Região ampliada adicionada ao lado direito.", "success")
+    try {
+      ctx.imageSmoothingEnabled = true
+      ctx.drawImage(img, x, y, region, region, 0, 0, OUT, OUT)
+      const url = canvas.toDataURL("image/png")
+      setSnapshots((s) => [...s, url])
+      toast("Região ampliada adicionada ao lado direito.", "success")
+    } catch (e) {
+      console.error("Falha ao capturar região ampliada:", e)
+      toast("Não foi possível capturar a região ampliada.", "error")
+    }
   }
 
   const undo = () => {

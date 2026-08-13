@@ -188,6 +188,7 @@ export function RadiographsPage({ patients }: { patients: { id: string; fullName
   const [snapshots, setSnapshots] = useState<string[]>([])
   const drawingRef = useRef(false)
   const lastClickRef = useRef<{ t: number; p: Pt } | null>(null)
+  const zoomGuardRef = useRef(0)
   const shapesRef = useRef<Shape[]>([])
   const dirtyRef = useRef(false)
   const savingAnnRef = useRef(false)
@@ -212,6 +213,7 @@ export function RadiographsPage({ patients }: { patients: { id: string; fullName
     setSnapshots([])
     drawingRef.current = false
     lastClickRef.current = null
+    zoomGuardRef.current = 0
     dirtyRef.current = false
     closingRef.current = false
     shapesRef.current = []
@@ -310,8 +312,19 @@ export function RadiographsPage({ patients }: { patients: { id: string; fullName
   }
 
   const onPointerDown = (e: ReactPointerEvent<SVGSVGElement>) => {
-    if (!view) return
     const p = pos(e)
+    if (tool === "zoom") {
+      if (!viewing) return
+      const now = Date.now()
+      if (now - zoomGuardRef.current < 350) {
+        zoomGuardRef.current = now
+        return
+      }
+      zoomGuardRef.current = now
+      captureRegion(p)
+      return
+    }
+    if (!view) return
     e.preventDefault()
     if (tool === "select") {
       const v = vertexAt(p, shapes)
@@ -329,10 +342,6 @@ export function RadiographsPage({ patients }: { patients: { id: string; fullName
       } else {
         setSelected(null)
       }
-      return
-    }
-    if (tool === "zoom") {
-      captureRegion(p)
       return
     }
     if (tool === "text") {
@@ -401,24 +410,34 @@ export function RadiographsPage({ patients }: { patients: { id: string; fullName
   }
 
   const captureRegion = (p: Pt) => {
-    if (!view || !viewing) return
+    if (!viewing) return
     const img = imgRef.current
-    if (!img || !img.complete || !img.naturalWidth) return
+    if (!img || !img.complete || !img.naturalWidth) {
+      toast("A imagem ainda está carregando. Tente novamente em instantes.", "error")
+      return
+    }
+    const rect = img.getBoundingClientRect()
+    if (!rect.width || !rect.height) return
     const region = MAG / ZOOM
-    const x = Math.max(0, Math.min(p.x - region / 2, view.w - region))
-    const y = Math.max(0, Math.min(p.y - region / 2, view.h - region))
-    const scale = img.naturalWidth / view.w
+    const x = Math.max(0, Math.min(p.x - region / 2, rect.width - region))
+    const y = Math.max(0, Math.min(p.y - region / 2, rect.height - region))
+    const scale = img.naturalWidth / rect.width
     const OUT = 512
     const canvas = document.createElement("canvas")
     canvas.width = OUT
     canvas.height = OUT
     const ctx = canvas.getContext("2d")
     if (!ctx) return
-    ctx.imageSmoothingEnabled = true
-    ctx.drawImage(img, x * scale, y * scale, region * scale, region * scale, 0, 0, OUT, OUT)
-    const url = canvas.toDataURL("image/png")
-    setSnapshots((s) => [...s, url])
-    toast("Região ampliada adicionada ao lado direito.", "success")
+    try {
+      ctx.imageSmoothingEnabled = true
+      ctx.drawImage(img, x * scale, y * scale, region * scale, region * scale, 0, 0, OUT, OUT)
+      const url = canvas.toDataURL("image/png")
+      setSnapshots((s) => [...s, url])
+      toast("Região ampliada adicionada ao lado direito.", "success")
+    } catch (e) {
+      console.error("Falha ao capturar região ampliada:", e)
+      toast("Não foi possível capturar a região ampliada.", "error")
+    }
   }
 
   const shapeToSvg = (s: Shape): string => {
@@ -1135,6 +1154,15 @@ export function RadiographsPage({ patients }: { patients: { id: string; fullName
                       </g>
                     )}
                   </svg>
+                )}
+                {tool === "zoom" && !view && (
+                  <svg
+                    className="absolute left-0 top-0 h-full w-full cursor-zoom-in touch-none"
+                    onPointerDown={onPointerDown}
+                    onPointerMove={onPointerMove}
+                    onPointerUp={onPointerUp}
+                    onPointerLeave={() => setHover(null)}
+                  />
                 )}
                 {tool === "text" && editing != null && shapes[editing.si]?.type === "text" && view && (
                   <input
