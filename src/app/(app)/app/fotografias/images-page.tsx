@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useSearchParams } from "next/navigation"
-import { Camera, CalendarDays, Trash2, Stethoscope, Pencil, Link2 } from "lucide-react"
+import { Camera, CalendarDays, Contrast, SunMedium, Trash2, Stethoscope, Pencil, Link2 } from "lucide-react"
 import { Card, CardBody } from "@/components/ui/card"
 import { EmptyState } from "@/components/ui/feedback"
 import { Button } from "@/components/ui/button"
@@ -45,6 +45,8 @@ export function ImagesPage({ patients }: { patients: { id: string; fullName: str
 
   const [uploadOpen, setUploadOpen] = useState(false)
   const [viewing, setViewing] = useState<ImageRow | null>(null)
+  const [brightness, setBrightness] = useState(100)
+  const [contrast, setContrast] = useState(100)
   const [editing, setEditing] = useState<ImageRow | null>(null)
   const [deleting, setDeleting] = useState<ImageRow | null>(null)
   const [saving, setSaving] = useState(false)
@@ -88,6 +90,11 @@ export function ImagesPage({ patients }: { patients: { id: string; fullName: str
   useEffect(() => {
     load(patientFilter, categoryFilter)
   }, [patientFilter, categoryFilter, load])
+
+  useEffect(() => {
+    setBrightness(100)
+    setContrast(100)
+  }, [viewing])
 
   const onUpload = async () => {
     if (!file || !formPatient || saving) return
@@ -466,9 +473,59 @@ export function ImagesPage({ patients }: { patients: { id: string; fullName: str
       >
         {viewing && (
           <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 rounded-2xl border border-[#16213a] bg-[#0a1120] p-2 text-xs text-slate-300">
+              <label className="flex items-center gap-2">
+                <SunMedium className="h-4 w-4 text-amber-300" />
+                Brilho
+                <input
+                  type="range"
+                  min={50}
+                  max={200}
+                  value={brightness}
+                  onChange={(e) => setBrightness(Number(e.target.value))}
+                  className="h-1.5 w-28 cursor-pointer appearance-none rounded-full bg-[#1c2942] accent-sky-400"
+                  title="Brilho da imagem"
+                />
+                <span className="w-9 text-slate-400">{brightness}%</span>
+              </label>
+              <label className="flex items-center gap-2">
+                <Contrast className="h-4 w-4 text-sky-300" />
+                Contraste
+                <input
+                  type="range"
+                  min={50}
+                  max={200}
+                  value={contrast}
+                  onChange={(e) => setContrast(Number(e.target.value))}
+                  className="h-1.5 w-28 cursor-pointer appearance-none rounded-full bg-[#1c2942] accent-sky-400"
+                  title="Contraste da imagem"
+                />
+                <span className="w-9 text-slate-400">{contrast}%</span>
+              </label>
+              {(brightness !== 100 || contrast !== 100) && (
+                <button
+                  onClick={() => {
+                    setBrightness(100)
+                    setContrast(100)
+                  }}
+                  className="rounded-lg px-2 py-1 text-slate-400 transition hover:bg-white/5 hover:text-slate-200"
+                >
+                  Redefinir
+                </button>
+              )}
+            </div>
             <div className="overflow-hidden rounded-2xl border border-[#16213a] bg-[#0a1120]">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={viewing.url} alt={viewing.label || "Fotografia"} className="max-h-[60vh] w-full object-contain" />
+              <img
+                src={viewing.url}
+                alt={viewing.label || "Fotografia"}
+                className="max-h-[60vh] w-full object-contain"
+                style={
+                  brightness !== 100 || contrast !== 100
+                    ? { filter: `brightness(${brightness}%) contrast(${contrast}%)` }
+                    : undefined
+                }
+              />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
