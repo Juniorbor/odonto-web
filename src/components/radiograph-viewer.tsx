@@ -126,6 +126,7 @@ export function RadiographViewer({
   const drawingRef = useRef(false)
   const startRef = useRef<{ x: number; y: number } | null>(null)
   const zoomGuardRef = useRef(0)
+  const capturePendingRef = useRef(false)
   const shapesRef = useRef<ViewerShape[]>([])
   const dirtyRef = useRef(false)
   const closingRef = useRef(false)
@@ -232,13 +233,35 @@ export function RadiographViewer({
     if (tool === "lupa" && lensRef.current) lensRef.current.style.opacity = "0"
   }
 
-  const captureRegion = (clientX: number, clientY: number) => {
+  const captureRegion = async (clientX: number, clientY: number) => {
     const img = imgRef.current
-    const c = toImageCoords(clientX, clientY)
-    if (!img || !c || !img.complete || !img.naturalWidth) {
-      toast("A imagem ainda está carregando. Tente novamente em instantes.", "error")
-      return
+    if (!img || capturePendingRef.current) return
+    if (!(img.complete && img.naturalWidth > 0)) {
+      capturePendingRef.current = true
+      const ready = await new Promise<boolean>((resolve) => {
+        if (img.complete) return resolve(img.naturalWidth > 0)
+        let settled = false
+        const done = (ok: boolean) => {
+          if (settled) return
+          settled = true
+          img.removeEventListener("load", onLoad)
+          img.removeEventListener("error", onError)
+          resolve(ok)
+        }
+        const onLoad = () => done(img.naturalWidth > 0)
+        const onError = () => done(false)
+        img.addEventListener("load", onLoad)
+        img.addEventListener("error", onError)
+        setTimeout(() => done(img.complete && img.naturalWidth > 0), 45000)
+      })
+      capturePendingRef.current = false
+      if (!ready) {
+        toast("A imagem não pôde ser carregada para captura. Verifique o arquivo da radiografia.", "error")
+        return
+      }
     }
+    const c = toImageCoords(clientX, clientY)
+    if (!c) return
     const region = Math.min((MAG / ZOOM) * c.scale, img.naturalWidth, img.naturalHeight)
     const x = Math.max(0, Math.min(c.x - region / 2, img.naturalWidth - region))
     const y = Math.max(0, Math.min(c.y - region / 2, img.naturalHeight - region))

@@ -177,6 +177,7 @@ export function RadiographsPage({ patients }: { patients: { id: string; fullName
   const [shapes, setShapes] = useState<Shape[]>([])
   const [draft, setDraft] = useState<Shape | null>(null)
   const [view, setView] = useState<{ w: number; h: number } | null>(null)
+  const [imgError, setImgError] = useState(false)
   const [selected, setSelected] = useState<number | null>(null)
   const [hover, setHover] = useState<Pt | null>(null)
   const [drag, setDrag] = useState<{ si: number; pi?: number; start?: Pt } | null>(null)
@@ -189,6 +190,7 @@ export function RadiographsPage({ patients }: { patients: { id: string; fullName
   const drawingRef = useRef(false)
   const lastClickRef = useRef<{ t: number; p: Pt } | null>(null)
   const zoomGuardRef = useRef(0)
+  const capturingRef = useRef(false)
   const shapesRef = useRef<Shape[]>([])
   const dirtyRef = useRef(false)
   const savingAnnRef = useRef(false)
@@ -206,6 +208,7 @@ export function RadiographsPage({ patients }: { patients: { id: string; fullName
     setShapes([])
     setDraft(null)
     setView(null)
+    setImgError(false)
     setSelected(null)
     setHover(null)
     setDrag(null)
@@ -403,18 +406,44 @@ export function RadiographsPage({ patients }: { patients: { id: string; fullName
 
   const onImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
     const img = e.currentTarget
+    if (!img.naturalWidth) return
+    setImgError(false)
     const MAX_W = 1200
     const MAX_H = 720
     const scale = Math.min(MAX_W / img.naturalWidth, MAX_H / img.naturalHeight, 1)
     setView({ w: Math.round(img.naturalWidth * scale), h: Math.round(img.naturalHeight * scale) })
   }
 
-  const captureRegion = (p: Pt) => {
-    if (!viewing) return
+  const waitForImage = (img: HTMLImageElement, timeoutMs = 45000): Promise<boolean> =>
+    new Promise((resolve) => {
+      if (img.complete) return resolve(img.naturalWidth > 0)
+      let settled = false
+      const done = (ok: boolean) => {
+        if (settled) return
+        settled = true
+        img.removeEventListener("load", onLoad)
+        img.removeEventListener("error", onError)
+        resolve(ok)
+      }
+      const onLoad = () => done(img.naturalWidth > 0)
+      const onError = () => done(false)
+      img.addEventListener("load", onLoad)
+      img.addEventListener("error", onError)
+      setTimeout(() => done(img.complete && img.naturalWidth > 0), timeoutMs)
+    })
+
+  const captureRegion = async (p: Pt) => {
+    if (!viewing || capturingRef.current) return
     const img = imgRef.current
-    if (!img || !img.complete || !img.naturalWidth) {
-      toast("A imagem ainda está carregando. Tente novamente em instantes.", "error")
-      return
+    if (!img) return
+    if (!(img.complete && img.naturalWidth > 0)) {
+      capturingRef.current = true
+      const ready = await waitForImage(img)
+      capturingRef.current = false
+      if (!ready) {
+        toast("A imagem não pôde ser carregada para captura. Verifique o arquivo da radiografia.", "error")
+        return
+      }
     }
     const rect = img.getBoundingClientRect()
     if (!rect.width || !rect.height) return
@@ -1103,10 +1132,24 @@ export function RadiographsPage({ patients }: { patients: { id: string; fullName
                   src={viewing.url}
                   alt={viewing.label || "Radiografia"}
                   onLoad={onImageLoad}
+                  onError={() => setImgError(true)}
                   ref={imgRef}
                   className="block h-auto w-full object-contain"
                   draggable={false}
                 />
+                {!view && !imgError && (
+                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-slate-500">
+                    <span className="inline-flex items-center gap-2">
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-600 border-t-sky-400" />
+                      Carregando imagem...
+                    </span>
+                  </div>
+                )}
+                {!view && imgError && (
+                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-6 text-center text-sm text-rose-300">
+                    Não foi possível carregar a imagem da radiografia. Tente baixar o arquivo original.
+                  </div>
+                )}
                 {view && (
                   <svg
                     width={view.w}
