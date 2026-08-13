@@ -16,34 +16,26 @@ export default async function AppDashboard() {
 
   const [patientCount, activePatients, appointmentsToday, appointmentsMonth] =
     await Promise.all([
-      ctx.isAdminMaster
-        ? 0
-        : prisma.patient.count({ where: { clinicId: ctx.clinicId! } }),
-      ctx.isAdminMaster
-        ? 0
-        : prisma.patient.count({ where: { clinicId: ctx.clinicId!, active: true } }),
-      ctx.isAdminMaster
-        ? 0
-        : prisma.appointment.count({
-            where: {
-              clinicId: ctx.clinicId!,
-              startsAt: {
-                gte: new Date(new Date().setHours(0, 0, 0, 0)),
-                lt: new Date(new Date().setHours(23, 59, 59, 999)),
-              },
-            },
-          }),
-      ctx.isAdminMaster
-        ? 0
-        : prisma.appointment.count({
-            where: {
-              clinicId: ctx.clinicId!,
-              startsAt: {
-                gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
-                lt: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1),
-              },
-            },
-          }),
+      prisma.patient.count({ where: ctx.isAdminMaster ? undefined : { clinicId: ctx.clinicId! } }),
+      prisma.patient.count({ where: ctx.isAdminMaster ? undefined : { clinicId: ctx.clinicId!, active: true } }),
+      prisma.appointment.count({
+        where: {
+          ...(ctx.isAdminMaster ? {} : { clinicId: ctx.clinicId! }),
+          startsAt: {
+            gte: new Date(new Date().setHours(0, 0, 0, 0)),
+            lt: new Date(new Date().setHours(23, 59, 59, 999)),
+          },
+        },
+      }),
+      prisma.appointment.count({
+        where: {
+          ...(ctx.isAdminMaster ? {} : { clinicId: ctx.clinicId! }),
+          startsAt: {
+            gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+            lt: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1),
+          },
+        },
+      }),
     ])
 
   const stats = [
@@ -53,23 +45,29 @@ export default async function AppDashboard() {
     { label: "Atendimentos no mês", value: appointmentsMonth, icon: <Stethoscope className="h-5 w-5" />, tone: "text-indigo-400 bg-indigo-500/10 border-indigo-500/25" },
   ]
 
-  const recentPatients = ctx.isAdminMaster
-    ? []
-    : await prisma.patient.findMany({
-        where: { clinicId: ctx.clinicId! },
-        orderBy: { createdAt: "desc" },
-        take: 5,
-        select: { id: true, fullName: true, phone: true, createdAt: true },
-      })
+  const recentPatients = await prisma.patient.findMany({
+    where: ctx.isAdminMaster ? undefined : { clinicId: ctx.clinicId! },
+    orderBy: { createdAt: "desc" },
+    take: 5,
+    select: { id: true, fullName: true, phone: true, createdAt: true, clinic: { select: { name: true } } },
+  })
 
-  const upcomingAppointments = ctx.isAdminMaster
-    ? []
-    : await prisma.appointment.findMany({
-        where: { clinicId: ctx.clinicId!, startsAt: { gte: new Date() }, status: { in: ["SCHEDULED", "CONFIRMED"] } },
-        orderBy: { startsAt: "asc" },
-        take: 5,
-        select: { id: true, startsAt: true, status: true, patient: { select: { id: true, fullName: true } } },
-      })
+  const upcomingAppointments = await prisma.appointment.findMany({
+    where: {
+      ...(ctx.isAdminMaster ? {} : { clinicId: ctx.clinicId! }),
+      startsAt: { gte: new Date() },
+      status: { in: ["SCHEDULED", "CONFIRMED"] },
+    },
+    orderBy: { startsAt: "asc" },
+    take: 5,
+    select: {
+      id: true,
+      startsAt: true,
+      status: true,
+      patient: { select: { id: true, fullName: true } },
+      clinic: { select: { name: true } },
+    },
+  })
 
   return (
     <div className="mx-auto max-w-[1600px] space-y-5 sm:space-y-6 px-3.5 py-4 sm:px-6 sm:py-8">
@@ -117,7 +115,10 @@ export default async function AppDashboard() {
                   >
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-slate-200">{a.patient.fullName}</p>
-                      <p className="text-xs text-slate-500">{formatDate(a.startsAt, true)}</p>
+                      <p className="text-xs text-slate-500">
+                        {formatDate(a.startsAt, true)}
+                        {ctx.isAdminMaster && a.clinic ? ` • ${a.clinic.name}` : ""}
+                      </p>
                     </div>
                     <span className="rounded-full border border-sky-500/25 bg-sky-500/10 px-2.5 py-0.5 text-[10px] font-medium text-sky-300">
                       {a.status === "CONFIRMED" ? "Confirmado" : "Agendado"}
@@ -150,7 +151,10 @@ export default async function AppDashboard() {
                   >
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-slate-200">{p.fullName}</p>
-                      <p className="text-xs text-slate-500">{p.phone || "Sem telefone"}</p>
+                      <p className="text-xs text-slate-500">
+                        {p.phone || "Sem telefone"}
+                        {ctx.isAdminMaster && p.clinic ? ` • ${p.clinic.name}` : ""}
+                      </p>
                     </div>
                     <span className="text-[11px] text-slate-600">{formatDate(p.createdAt)}</span>
                   </Link>
