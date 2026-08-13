@@ -14,6 +14,9 @@ export type ViewerShape =
 
 type Tool = "arrow" | "circle" | "rect" | "path" | "lupa"
 
+const MAG = 220
+const ZOOM = 3.2
+
 const TOOLS: { id: Tool; label: string }[] = [
   { id: "arrow", label: "Seta" },
   { id: "circle", label: "Círculo" },
@@ -115,6 +118,7 @@ export function RadiographViewer({
   const [saving, setSaving] = useState(false)
   const [loaded, setLoaded] = useState(false)
   const [imgLoaded, setImgLoaded] = useState(false)
+  const [snapshots, setSnapshots] = useState<string[]>([])
 
   const containerRef = useRef<HTMLDivElement>(null)
   const imgRef = useRef<HTMLImageElement>(null)
@@ -150,7 +154,10 @@ export function RadiographViewer({
   )
 
   const onPointerDown = (e: React.PointerEvent) => {
-    if (tool === "lupa") return
+    if (tool === "lupa") {
+      captureRegion(e.clientX, e.clientY)
+      return
+    }
     e.currentTarget.setPointerCapture(e.pointerId)
     const c = toImageCoords(e.clientX, e.clientY)
     if (!c) return
@@ -174,8 +181,8 @@ export function RadiographViewer({
       const lens = lensRef.current
       if (box && lens && c && imgRef.current) {
         const rect = box.getBoundingClientRect()
-        const lensR = 110
-        const zoom = 3.2
+        const lensR = MAG / 2
+        const zoom = ZOOM
         lens.style.opacity = "1"
         lens.style.left = `${e.clientX - rect.left - lensR}px`
         lens.style.top = `${e.clientY - rect.top - lensR}px`
@@ -216,6 +223,26 @@ export function RadiographViewer({
   const onPointerLeave = (e: React.PointerEvent) => {
     if (e.currentTarget.hasPointerCapture(e.pointerId)) return
     if (tool === "lupa" && lensRef.current) lensRef.current.style.opacity = "0"
+  }
+
+  const captureRegion = (clientX: number, clientY: number) => {
+    const img = imgRef.current
+    const c = toImageCoords(clientX, clientY)
+    if (!img || !c || !img.complete || !img.naturalWidth) return
+    const region = Math.min((MAG / ZOOM) * c.scale, img.naturalWidth, img.naturalHeight)
+    const x = Math.max(0, Math.min(c.x - region / 2, img.naturalWidth - region))
+    const y = Math.max(0, Math.min(c.y - region / 2, img.naturalHeight - region))
+    const OUT = 512
+    const canvas = document.createElement("canvas")
+    canvas.width = OUT
+    canvas.height = OUT
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return
+    ctx.imageSmoothingEnabled = true
+    ctx.drawImage(img, x, y, region, region, 0, 0, OUT, OUT)
+    const url = canvas.toDataURL("image/png")
+    setSnapshots((s) => [...s, url])
+    toast("Região ampliada adicionada ao lado direito.", "success")
   }
 
   const undo = () => {
@@ -276,6 +303,7 @@ export function RadiographViewer({
     setDraft(null)
     setImgLoaded(false)
     setLoaded(false)
+    setSnapshots([])
     dirtyRef.current = false
     closingRef.current = false
     shapesRef.current = []
@@ -379,6 +407,7 @@ export function RadiographViewer({
       </div>
       )}
 
+      <div className="flex flex-1 flex-col overflow-hidden md:flex-row">
       <div ref={containerRef} className="relative flex-1 overflow-hidden">
         {renderable ? (
           <>
@@ -437,6 +466,50 @@ export function RadiographViewer({
             </a>
           </div>
         )}
+      </div>
+
+      {renderable && (
+        <aside className="flex max-h-[45vh] w-full shrink-0 flex-col border-t border-[#13203e] bg-[#0a1120] md:max-h-none md:w-[300px] md:border-l md:border-t-0">
+          <div className="border-b border-[#13203e] px-4 py-3">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-sm font-semibold text-slate-100">Regiões ampliadas</h3>
+              {snapshots.length > 0 && (
+                <button onClick={() => setSnapshots([])} className="text-[11px] text-rose-300 transition hover:text-rose-200">
+                  Limpar tudo
+                </button>
+              )}
+            </div>
+            <p className="mt-1 text-xs text-slate-500">
+              Com a ferramenta Lupa ativa, clique sobre a radiografia para capturar a região ampliada.
+            </p>
+          </div>
+          <div className="flex-1 space-y-3 overflow-y-auto p-3">
+            {snapshots.length === 0 ? (
+              <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-[#1c2942] py-8 text-center">
+                <ZoomIn className="h-6 w-6 text-slate-600" />
+                <p className="text-xs text-slate-500">Nenhuma região capturada ainda.</p>
+              </div>
+            ) : (
+              snapshots.map((url, i) => (
+                <div key={`${url.slice(-24)}-${i}`} className="group relative overflow-hidden rounded-xl border border-[#16213a] bg-[#0a1120]">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={url} alt={`Região ${i + 1}`} className="w-full object-contain" />
+                  <div className="flex items-center justify-between gap-2 border-t border-[#16213a] px-3 py-1.5">
+                    <span className="text-[11px] font-medium text-slate-400">Região {i + 1}</span>
+                    <button
+                      onClick={() => setSnapshots((s) => s.filter((_, j) => j !== i))}
+                      className="rounded-md p-1 text-slate-500 transition hover:bg-rose-500/10 hover:text-rose-300"
+                      aria-label={`Remover região ${i + 1}`}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </aside>
+      )}
       </div>
     </div>
   )
