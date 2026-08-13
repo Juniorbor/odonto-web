@@ -852,3 +852,11 @@ model Setting {
   value     Json
   updatedAt DateTime @updatedAt
 }
+
+model StoredFile {
+  id        String   @id @default(cuid())
+  path      String   @unique
+  data      Bytes
+  sizeBytes Int
+  createdAt DateTime @default(now())
+}

@@ -19,7 +19,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const ext = fileExtensionFromMime(radiograph.mimeType)
   const filename = `${(radiograph.label || radiograph.examType || "radiografia").replace(/[^\w\d\- ]+/g, "_").trim() || "radiografia"}.${ext}`
 
-  return new Response(buffer, {
+  return new Response(new Uint8Array(buffer), {
     headers: {
       "Content-Type": radiograph.mimeType,
       "Content-Length": String(buffer.byteLength),

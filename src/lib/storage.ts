@@ -4,6 +4,7 @@ import fsp from "fs/promises"
 import path from "path"
 import crypto from "crypto"
 import { getStore } from "@netlify/blobs"
+import { prisma } from "@/lib/prisma"
 
 const ROOT = path.join(/*turbopackIgnore: true*/ process.cwd(), process.env.STORAGE_DIR || "storage")
 const USE_BLOBS = process.env.NETLIFY === "true"
@@ -49,11 +50,38 @@ async function writeFileToDisk(relativePath: string, buffer: Buffer) {
   } catch (e) {
     const reason = (e as Error).message
     throw new StorageError(
-      `Armazenamento de arquivos indisponível no servidor (${reason}). ` +
-        (USE_BLOBS
-          ? "Habilite o Netlify Blobs no painel do site (Netlify → Data storage → Blobs) para salvar arquivos no deploy."
-          : "Verifique a permissão de escrita da pasta de arquivos."),
+      `Armazenamento de arquivos indisponível no servidor (${reason}). Verifique a permissão de escrita da pasta de arquivos.`,
     )
+  }
+}
+
+/** Grava um buffer no banco (fallback universal — funciona em serverless). */
+async function saveToDb(relativePath: string, buffer: Buffer) {
+  const data = new Uint8Array(buffer)
+  await prisma.storedFile.upsert({
+    where: { path: relativePath },
+    update: { data, sizeBytes: buffer.length },
+    create: { path: relativePath, data, sizeBytes: buffer.length },
+  })
+}
+
+async function readFromDb(relativePath: string): Promise<Buffer | null> {
+  try {
+    const row = await prisma.storedFile.findUnique({
+      where: { path: relativePath },
+      select: { data: true },
+    })
+    return row ? Buffer.from(row.data) : null
+  } catch {
+    return null
+  }
+}
+
+async function removeFromDb(relativePath: string) {
+  try {
+    await prisma.storedFile.deleteMany({ where: { path: relativePath } })
+  } catch {
+    // já não existe
   }
 }
 
@@ -102,9 +130,16 @@ export async function saveFile(buffer: Buffer, options: { tenantId: string; subd
         await store.set(relativePath, buf as unknown as ArrayBuffer)
         return relativePath
       } catch (e) {
-        console.error("Blob store indisponível, gravando no disco:", e)
+        console.error("Blob store indisponível, gravando no banco:", e)
       }
     }
+  }
+
+  try {
+    await saveToDb(relativePath, buffer)
+    return relativePath
+  } catch (e) {
+    console.error("Banco indisponível para arquivo, gravando no disco:", e)
   }
 
   await writeFileToDisk(relativePath, buffer)
@@ -112,7 +147,7 @@ export async function saveFile(buffer: Buffer, options: { tenantId: string; subd
   return relativePath
 }
 
-export async function readFileBuffer(relativePath: string) {
+export async function readFileBuffer(relativePath: string): Promise<Buffer | null> {
   if (USE_BLOBS) {
     const store = blobApi()
     if (store) {
@@ -120,15 +155,17 @@ export async function readFileBuffer(relativePath: string) {
         const data = (await store.get(relativePath, { type: "arrayBuffer" })) as ArrayBuffer | null
         if (data) return Buffer.from(data)
       } catch {
-        // blob indisponível — tenta o disco (fallback)
+        // blob indisponível — tenta o banco (fallback)
       }
     }
   }
+  const fromDb = await readFromDb(relativePath)
+  if (fromDb) return fromDb
   const abs = path.join(ROOT, path.normalize(relativePath))
   if (!abs.startsWith(ROOT)) return null
   if (!fs.existsSync(abs)) return null
   try {
-    return await fsp.readFile(abs)
+    return Buffer.from(await fsp.readFile(abs))
   } catch {
     return null
   }
@@ -146,6 +183,7 @@ export async function removeFile(relativePath?: string | null) {
       }
     }
   }
+  await removeFromDb(relativePath)
   const abs = path.join(ROOT, path.normalize(relativePath))
   if (!abs.startsWith(ROOT)) return
   try {
@@ -232,9 +270,15 @@ export async function saveChunk(tenantId: string, uploadId: string, index: numbe
         await store.set(rel, new Uint8Array(buffer) as unknown as ArrayBuffer)
         return
       } catch (e) {
-        console.error("Blob store indisponível para chunk, gravando no disco:", e)
+        console.error("Blob store indisponível para chunk, gravando no banco:", e)
       }
     }
+  }
+  try {
+    await saveToDb(rel, buffer)
+    return
+  } catch (e) {
+    console.error("Banco indisponível para chunk, gravando no disco:", e)
   }
   await writeFileToDisk(rel, buffer)
 }
@@ -295,6 +339,15 @@ export async function getStorageUsage(tenantId: string) {
     await walk(dir, (size) => (total += size))
   } catch {
     total = 0
+  }
+  try {
+    const agg = await prisma.storedFile.aggregate({
+      where: { path: { startsWith: `${tenantId}/` } },
+      _sum: { sizeBytes: true },
+    })
+    total += agg._sum.sizeBytes ?? 0
+  } catch {
+    // banco indisponível
   }
   return total
 }
