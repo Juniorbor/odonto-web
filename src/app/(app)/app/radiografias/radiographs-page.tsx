@@ -438,6 +438,7 @@ export function RadiographsPage({ patients }: { patients: { id: string; fullName
     if (!img) return
     if (!(img.complete && img.naturalWidth > 0)) {
       capturingRef.current = true
+      toast("A imagem ainda está carregando. A região será capturada automaticamente quando terminar.", "info")
       const ready = await waitForImage(img)
       capturingRef.current = false
       if (!ready) {
