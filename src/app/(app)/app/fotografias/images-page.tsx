@@ -231,7 +231,8 @@ export function ImagesPage({ patients }: { patients: { id: string; fullName: str
           type="file"
           accept="image/*"
           capture="environment"
-          className="hidden"
+          className="pointer-events-none absolute h-px w-px opacity-0"
+          style={{ position: "fixed", left: "-9999px", top: "0" }}
           onChange={onCapture}
         />
       </div>

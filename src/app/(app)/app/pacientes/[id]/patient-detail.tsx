@@ -340,7 +340,8 @@ export function PatientDetail({
                       type="file"
                       accept="image/*"
                       capture="environment"
-                      className="hidden"
+                      className="pointer-events-none absolute h-px w-px opacity-0"
+                      style={{ position: "fixed", left: "-9999px", top: "0" }}
                       onChange={(e) => {
                         const f = e.target.files?.[0]
                         if (f) capturePhoto(f)
