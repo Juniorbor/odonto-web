@@ -300,6 +300,11 @@ export async function assembleChunks(tenantId: string, uploadId: string, total: 
         }
       }
     }
+    const fromDb = await readFromDb(rel)
+    if (fromDb) {
+      parts.push(fromDb)
+      continue
+    }
     const abs = path.join(ROOT, rel)
     if (!fs.existsSync(abs)) return null
     parts.push(await fsp.readFile(abs))
@@ -321,6 +326,7 @@ export async function dropChunks(tenantId: string, uploadId: string, total: numb
         }
       }
     }
+    await removeFromDb(rel)
     const abs = path.join(ROOT, rel)
     if (abs.startsWith(ROOT)) {
       try {
