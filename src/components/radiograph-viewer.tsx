@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState, useCallback } from "react"
-import { Circle, Download, FileText, MousePointer2, PenTool, Save, Square, Trash2, Undo2, X, ZoomIn } from "lucide-react"
+import { Circle, Contrast, Download, FileText, MousePointer2, PenTool, Save, Square, SunMedium, Trash2, Undo2, X, ZoomIn } from "lucide-react"
 import { cn, isImageRenderable } from "@/lib/utils"
 import { useToast } from "@/components/ui/toaster"
 import { Button } from "@/components/ui/button"
@@ -119,6 +119,8 @@ export function RadiographViewer({
   const [loaded, setLoaded] = useState(false)
   const [imgLoaded, setImgLoaded] = useState(false)
   const [snapshots, setSnapshots] = useState<string[]>([])
+  const [brightness, setBrightness] = useState(100)
+  const [contrast, setContrast] = useState(100)
 
   const containerRef = useRef<HTMLDivElement>(null)
   const imgRef = useRef<HTMLImageElement>(null)
@@ -282,6 +284,9 @@ export function RadiographViewer({
         return
       }
       ctx.imageSmoothingEnabled = true
+      if (brightness !== 100 || contrast !== 100) {
+        ctx.filter = `brightness(${brightness}%) contrast(${contrast}%)`
+      }
       ctx.drawImage(img, x, y, region, region, 0, 0, OUT, OUT)
       const url = canvas.toDataURL("image/png")
       setSnapshots((s) => [...s, url])
@@ -353,6 +358,8 @@ export function RadiographViewer({
     setImgLoaded(false)
     setLoaded(false)
     setSnapshots([])
+    setBrightness(100)
+    setContrast(100)
     dirtyRef.current = false
     closingRef.current = false
     shapesRef.current = []
@@ -456,6 +463,50 @@ export function RadiographViewer({
       </div>
       )}
 
+      {renderable && (
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-[#13203e] bg-[#0a1120] px-4 py-2 text-xs text-slate-300">
+        <label className="flex items-center gap-2">
+          <SunMedium className="h-4 w-4 text-amber-300" />
+          Brilho
+          <input
+            type="range"
+            min={50}
+            max={200}
+            value={brightness}
+            onChange={(e) => setBrightness(Number(e.target.value))}
+            className="h-1.5 w-28 cursor-pointer appearance-none rounded-full bg-[#1c2942] accent-sky-400"
+            title="Brilho da imagem"
+          />
+          <span className="w-9 text-slate-500">{brightness}%</span>
+        </label>
+        <label className="flex items-center gap-2">
+          <Contrast className="h-4 w-4 text-sky-300" />
+          Contraste
+          <input
+            type="range"
+            min={50}
+            max={200}
+            value={contrast}
+            onChange={(e) => setContrast(Number(e.target.value))}
+            className="h-1.5 w-28 cursor-pointer appearance-none rounded-full bg-[#1c2942] accent-sky-400"
+            title="Contraste da imagem"
+          />
+          <span className="w-9 text-slate-500">{contrast}%</span>
+        </label>
+        {(brightness !== 100 || contrast !== 100) && (
+          <button
+            onClick={() => {
+              setBrightness(100)
+              setContrast(100)
+            }}
+            className="rounded-lg px-2 py-1 text-slate-400 transition hover:bg-white/5 hover:text-slate-200"
+          >
+            Redefinir
+          </button>
+        )}
+      </div>
+      )}
+
       <div className="flex flex-1 flex-col overflow-hidden md:flex-row">
       <div ref={containerRef} className="relative flex-1 overflow-hidden">
         {renderable ? (
@@ -468,6 +519,11 @@ export function RadiographViewer({
             className="max-h-full max-w-full select-none"
             draggable={false}
             onLoad={() => setImgLoaded(true)}
+            style={
+              brightness !== 100 || contrast !== 100
+                ? { filter: `brightness(${brightness}%) contrast(${contrast}%)` }
+                : undefined
+            }
           />
         </div>
 
@@ -490,7 +546,11 @@ export function RadiographViewer({
           <div
             ref={lensRef}
             className="pointer-events-none absolute z-10 h-[220px] w-[220px] rounded-full border-[3px] border-sky-400/80 opacity-0 shadow-[0_0_40px_rgba(0,0,0,0.9)]"
-            style={{ backgroundRepeat: "no-repeat", backgroundPosition: "0px 0px" }}
+            style={{
+              backgroundRepeat: "no-repeat",
+              backgroundPosition: "0px 0px",
+              filter: brightness !== 100 || contrast !== 100 ? `brightness(${brightness}%) contrast(${contrast}%)` : undefined,
+            }}
           />
         )}
 

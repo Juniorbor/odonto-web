@@ -2,7 +2,7 @@
 
 import { Fragment, useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode, type PointerEvent as ReactPointerEvent } from "react"
 import { useSearchParams } from "next/navigation"
-import { ArrowUpRight, Camera, CalendarDays, Check, Circle, Download, FileText, FileUp, Minus, MousePointer2, Pencil, Save, Spline, Square, Trash2, Stethoscope, Undo2, ZoomIn } from "lucide-react"
+import { ArrowUpRight, Camera, CalendarDays, Check, Circle, Contrast, Download, FileText, FileUp, Minus, MousePointer2, Pencil, Save, Spline, Square, SunMedium, Trash2, Stethoscope, Undo2, ZoomIn } from "lucide-react"
 import { Card, CardBody } from "@/components/ui/card"
 import { EmptyState } from "@/components/ui/feedback"
 import { Button } from "@/components/ui/button"
@@ -187,6 +187,8 @@ export function RadiographsPage({ patients }: { patients: { id: string; fullName
   const [exporting, setExporting] = useState(false)
   const [savingAnn, setSavingAnn] = useState(false)
   const [snapshots, setSnapshots] = useState<string[]>([])
+  const [brightness, setBrightness] = useState(100)
+  const [contrast, setContrast] = useState(100)
   const drawingRef = useRef(false)
   const lastClickRef = useRef<{ t: number; p: Pt } | null>(null)
   const zoomGuardRef = useRef(0)
@@ -214,6 +216,8 @@ export function RadiographsPage({ patients }: { patients: { id: string; fullName
     setDrag(null)
     setEditing(null)
     setSnapshots([])
+    setBrightness(100)
+    setContrast(100)
     drawingRef.current = false
     lastClickRef.current = null
     zoomGuardRef.current = 0
@@ -471,6 +475,9 @@ export function RadiographsPage({ patients }: { patients: { id: string; fullName
         return
       }
       ctx.imageSmoothingEnabled = true
+      if (brightness !== 100 || contrast !== 100) {
+        ctx.filter = `brightness(${brightness}%) contrast(${contrast}%)`
+      }
       ctx.drawImage(img, x * scale, y * scale, region * scale, region * scale, 0, 0, OUT, OUT)
       const url = canvas.toDataURL("image/png")
       setSnapshots((s) => [...s, url])
@@ -1142,6 +1149,48 @@ export function RadiographsPage({ patients }: { patients: { id: string; fullName
               </button>
             </div>
 
+            <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 rounded-2xl border border-[#16213a] bg-[#0a1120] p-2 text-xs text-slate-300">
+              <label className="flex items-center gap-2">
+                <SunMedium className="h-4 w-4 text-amber-300" />
+                Brilho
+                <input
+                  type="range"
+                  min={50}
+                  max={200}
+                  value={brightness}
+                  onChange={(e) => setBrightness(Number(e.target.value))}
+                  className="h-1.5 w-28 cursor-pointer appearance-none rounded-full bg-[#1c2942] accent-sky-400"
+                  title="Brilho da imagem"
+                />
+                <span className="w-9 text-slate-400">{brightness}%</span>
+              </label>
+              <label className="flex items-center gap-2">
+                <Contrast className="h-4 w-4 text-sky-300" />
+                Contraste
+                <input
+                  type="range"
+                  min={50}
+                  max={200}
+                  value={contrast}
+                  onChange={(e) => setContrast(Number(e.target.value))}
+                  className="h-1.5 w-28 cursor-pointer appearance-none rounded-full bg-[#1c2942] accent-sky-400"
+                  title="Contraste da imagem"
+                />
+                <span className="w-9 text-slate-400">{contrast}%</span>
+              </label>
+              {(brightness !== 100 || contrast !== 100) && (
+                <button
+                  onClick={() => {
+                    setBrightness(100)
+                    setContrast(100)
+                  }}
+                  className="rounded-lg px-2 py-1 text-slate-400 transition hover:bg-white/5 hover:text-slate-200"
+                >
+                  Redefinir
+                </button>
+              )}
+            </div>
+
             <div className="overflow-hidden rounded-2xl border border-[#16213a] bg-[#0a1120] p-1">
               <div className="relative mx-auto" style={{ width: view?.w ?? "100%", height: view?.h ?? 360 }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1153,6 +1202,11 @@ export function RadiographsPage({ patients }: { patients: { id: string; fullName
                   ref={imgRef}
                   className="block h-auto w-full object-contain"
                   draggable={false}
+                  style={
+                    brightness !== 100 || contrast !== 100
+                      ? { filter: `brightness(${brightness}%) contrast(${contrast}%)` }
+                      : undefined
+                  }
                 />
                 {!view && !imgError && (
                   <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-slate-500">
@@ -1276,6 +1330,7 @@ export function RadiographsPage({ patients }: { patients: { id: string; fullName
                       backgroundSize: `${view.w * ZOOM}px ${view.h * ZOOM}px`,
                       backgroundPosition: `${MAG / 2 - hover.x * ZOOM}px ${MAG / 2 - hover.y * ZOOM}px`,
                       backgroundRepeat: "no-repeat",
+                      filter: brightness !== 100 || contrast !== 100 ? `brightness(${brightness}%) contrast(${contrast}%)` : undefined,
                     }}
                   >
                     <div className="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-black/50" />
