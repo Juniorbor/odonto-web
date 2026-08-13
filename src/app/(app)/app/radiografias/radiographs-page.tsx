@@ -221,7 +221,6 @@ export function RadiographsPage({ patients }: { patients: { id: string; fullName
     closingRef.current = false
     shapesRef.current = []
     lastSavedRef.current = "[]"
-    imgRef.current = null
     if (viewing) {
       ;(async () => {
         try {
