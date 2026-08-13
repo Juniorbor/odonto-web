@@ -45,18 +45,22 @@ export async function receiveChunkedUpload(
 
   if (totalChunks === 1) return { done: true, buffer }
 
-  await saveChunk(tenantId, uploadId, chunkIndex, buffer)
-  if (chunkIndex < totalChunks - 1) return { done: false, waiting: totalChunks }
+  try {
+    await saveChunk(tenantId, uploadId, chunkIndex, buffer)
+    if (chunkIndex < totalChunks - 1) return { done: false, waiting: totalChunks }
 
-  const full = await assembleChunks(tenantId, uploadId, totalChunks)
-  await dropChunks(tenantId, uploadId, totalChunks)
-  if (!full) return { done: false, error: "Erro ao montar o arquivo enviado.", status: 500 }
-  if (full.length > maxSize) {
-    return {
-      done: false,
-      error: `Arquivo excede o limite de ${Math.floor(maxSize / 1024 / 1024)}MB.`,
-      status: 400,
+    const full = await assembleChunks(tenantId, uploadId, totalChunks)
+    await dropChunks(tenantId, uploadId, totalChunks)
+    if (!full) return { done: false, error: "Erro ao montar o arquivo enviado.", status: 500 }
+    if (full.length > maxSize) {
+      return {
+        done: false,
+        error: `Arquivo excede o limite de ${Math.floor(maxSize / 1024 / 1024)}MB.`,
+        status: 400,
+      }
     }
+    return { done: true, buffer: full }
+  } catch (e) {
+    return { done: false, error: (e as Error).message, status: 500 }
   }
-  return { done: true, buffer: full }
 }

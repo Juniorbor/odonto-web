@@ -10,9 +10,51 @@ const USE_BLOBS = process.env.NETLIFY === "true"
 const BLOB_STORE = "laudos-files"
 
 let blobStore: ReturnType<typeof getStore> | null = null
+let blobInitError: string | null = null
+
+export function blobStatus() {
+  return {
+    netlify: USE_BLOBS,
+    storeReady: blobStore !== null,
+    initError: blobInitError,
+  }
+}
+
 function blobApi() {
-  if (!blobStore) blobStore = getStore(BLOB_STORE)
-  return blobStore
+  if (blobStore) return blobStore
+  if (!USE_BLOBS || blobInitError) return null
+  try {
+    blobStore = getStore(BLOB_STORE)
+    return blobStore
+  } catch (e) {
+    blobInitError = (e as Error).message
+    console.error("Netlify Blobs indisponível:", blobInitError)
+    return null
+  }
+}
+
+class StorageError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = "StorageError"
+  }
+}
+
+/** Grava um buffer no disco (fallback local). */
+async function writeFileToDisk(relativePath: string, buffer: Buffer) {
+  const dirPath = path.join(ROOT, path.dirname(relativePath))
+  try {
+    await fsp.mkdir(dirPath, { recursive: true })
+    await fsp.writeFile(path.join(ROOT, relativePath), buffer)
+  } catch (e) {
+    const reason = (e as Error).message
+    throw new StorageError(
+      `Armazenamento de arquivos indisponível no servidor (${reason}). ` +
+        (USE_BLOBS
+          ? "Habilite o Netlify Blobs no painel do site (Netlify → Data storage → Blobs) para salvar arquivos no deploy."
+          : "Verifique a permissão de escrita da pasta de arquivos."),
+    )
+  }
 }
 
 export const ALLOWED_IMAGE_TYPES = new Set([
@@ -53,44 +95,55 @@ export async function saveFile(buffer: Buffer, options: { tenantId: string; subd
   const relativePath = path.join(safeSubdir, fileName).replace(/\\/g, "/")
 
   if (USE_BLOBS) {
-    try {
-      const buf = new Uint8Array(buffer)
-      await blobApi().set(relativePath, buf as unknown as ArrayBuffer)
-      return relativePath
-    } catch (e) {
-      console.error("Blob store indisponível, gravando no disco:", e)
+    const store = blobApi()
+    if (store) {
+      try {
+        const buf = new Uint8Array(buffer)
+        await store.set(relativePath, buf as unknown as ArrayBuffer)
+        return relativePath
+      } catch (e) {
+        console.error("Blob store indisponível, gravando no disco:", e)
+      }
     }
   }
 
-  const dirPath = path.join(ROOT, safeSubdir)
-  await fsp.mkdir(dirPath, { recursive: true })
-  await fsp.writeFile(path.join(ROOT, relativePath), buffer)
+  await writeFileToDisk(relativePath, buffer)
 
   return relativePath
 }
 
 export async function readFileBuffer(relativePath: string) {
   if (USE_BLOBS) {
-    try {
-      const data = (await blobApi().get(relativePath, { type: "arrayBuffer" })) as ArrayBuffer | null
-      if (data) return Buffer.from(data)
-    } catch {
-      // blob indisponível — tenta o disco (fallback)
+    const store = blobApi()
+    if (store) {
+      try {
+        const data = (await store.get(relativePath, { type: "arrayBuffer" })) as ArrayBuffer | null
+        if (data) return Buffer.from(data)
+      } catch {
+        // blob indisponível — tenta o disco (fallback)
+      }
     }
   }
   const abs = path.join(ROOT, path.normalize(relativePath))
   if (!abs.startsWith(ROOT)) return null
   if (!fs.existsSync(abs)) return null
-  return await fsp.readFile(abs)
+  try {
+    return await fsp.readFile(abs)
+  } catch {
+    return null
+  }
 }
 
 export async function removeFile(relativePath?: string | null) {
   if (!relativePath) return
   if (USE_BLOBS) {
-    try {
-      await blobApi().delete(relativePath)
-    } catch {
-      // blob já não existe ou indisponível
+    const store = blobApi()
+    if (store) {
+      try {
+        await store.delete(relativePath)
+      } catch {
+        // blob já não existe ou indisponível
+      }
     }
   }
   const abs = path.join(ROOT, path.normalize(relativePath))
@@ -173,16 +226,17 @@ const CHUNK_SUBDIR = "_chunks"
 export async function saveChunk(tenantId: string, uploadId: string, index: number, buffer: Buffer) {
   const rel = safeRelative(CHUNK_SUBDIR, tenantId, uploadId, `${index}.part`)
   if (USE_BLOBS) {
-    try {
-      await blobApi().set(rel, new Uint8Array(buffer) as unknown as ArrayBuffer)
-      return
-    } catch (e) {
-      console.error("Blob store indisponível para chunk, gravando no disco:", e)
+    const store = blobApi()
+    if (store) {
+      try {
+        await store.set(rel, new Uint8Array(buffer) as unknown as ArrayBuffer)
+        return
+      } catch (e) {
+        console.error("Blob store indisponível para chunk, gravando no disco:", e)
+      }
     }
   }
-  const abs = path.join(ROOT, rel)
-  await fsp.mkdir(path.dirname(abs), { recursive: true })
-  await fsp.writeFile(abs, buffer)
+  await writeFileToDisk(rel, buffer)
 }
 
 export async function assembleChunks(tenantId: string, uploadId: string, total: number): Promise<Buffer | null> {
@@ -190,13 +244,16 @@ export async function assembleChunks(tenantId: string, uploadId: string, total: 
   for (let i = 0; i < total; i++) {
     const rel = safeRelative(CHUNK_SUBDIR, tenantId, uploadId, `${i}.part`)
     if (USE_BLOBS) {
-      try {
-        const data = (await blobApi().get(rel, { type: "arrayBuffer" })) as ArrayBuffer | null
-        if (!data) return null
-        parts.push(Buffer.from(data))
-        continue
-      } catch {
-        return null
+      const store = blobApi()
+      if (store) {
+        try {
+          const data = (await store.get(rel, { type: "arrayBuffer" })) as ArrayBuffer | null
+          if (!data) return null
+          parts.push(Buffer.from(data))
+          continue
+        } catch {
+          return null
+        }
       }
     }
     const abs = path.join(ROOT, rel)
@@ -211,10 +268,13 @@ export async function dropChunks(tenantId: string, uploadId: string, total: numb
   for (let i = 0; i < total; i++) {
     const rel = safeRelative(CHUNK_SUBDIR, tenantId, uploadId, `${i}.part`)
     if (USE_BLOBS) {
-      try {
-        await blobApi().delete(rel)
-      } catch {
-        // já não existe
+      const store = blobApi()
+      if (store) {
+        try {
+          await store.delete(rel)
+        } catch {
+          // já não existe
+        }
       }
     }
     const abs = path.join(ROOT, rel)

@@ -8,7 +8,7 @@ import {
   fileExtensionFromMime,
   resolveUploadMime,
 } from "@/lib/storage"
-import { receiveChunkedUpload } from "@/lib/chunked-upload"
+import { receiveChunkedUpload, type ReceiveChunkResult } from "@/lib/chunked-upload"
 import { parseLocalDate } from "@/lib/utils"
 import { ExamType } from "@prisma/client"
 
@@ -62,7 +62,11 @@ export async function POST(req: NextRequest) {
   const patientId = String(form.get("patientId") || "")
   if (!patientId) return NextResponse.json({ error: "Paciente obrigatório." }, { status: 400 })
 
-  const received = await receiveChunkedUpload(ctx.tenantId, form)
+  const received = await receiveChunkedUpload(ctx.tenantId, form).catch((e) => ({
+    done: false as const,
+    error: (e as Error).message,
+    status: 500,
+  }) as ReceiveChunkResult)
   if (!received.done) {
     if (received.waiting) return NextResponse.json({ ok: true, waiting: received.waiting })
     return NextResponse.json({ error: received.error }, { status: received.status ?? 400 })
@@ -81,11 +85,17 @@ export async function POST(req: NextRequest) {
   const detectedMime = resolveUploadMime(fileNameFromForm(form), fileTypeFromForm(form), buffer)
   if (!detectedMime) return NextResponse.json({ error: "Formato de arquivo não permitido." }, { status: 400 })
 
-  const originalPath = await saveFile(buffer, {
-    tenantId: ctx.tenantId,
-    subdir: ["radiographs", "original"],
-    ext: fileExtensionFromMime(detectedMime),
-  })
+  let originalPath: string
+  try {
+    originalPath = await saveFile(buffer, {
+      tenantId: ctx.tenantId,
+      subdir: ["radiographs", "original"],
+      ext: fileExtensionFromMime(detectedMime),
+    })
+  } catch (e) {
+    console.error("Radiograph saveFile error:", e)
+    return NextResponse.json({ error: (e as Error).message }, { status: 500 })
+  }
 
   try {
     const radiograph = await prisma.radiograph.create({
