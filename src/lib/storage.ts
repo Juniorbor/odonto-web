@@ -3,34 +3,98 @@ import fs from "fs"
 import fsp from "fs/promises"
 import path from "path"
 import crypto from "crypto"
-import { getStore } from "@netlify/blobs"
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3"
 import { prisma } from "@/lib/prisma"
 
 const ROOT = path.join(/*turbopackIgnore: true*/ process.cwd(), process.env.STORAGE_DIR || "storage")
-const USE_BLOBS = process.env.NETLIFY === "true"
-const BLOB_STORE = "laudos-files"
 
-let blobStore: ReturnType<typeof getStore> | null = null
-let blobInitError: string | null = null
+const S3_ENDPOINT = process.env.S3_ENDPOINT
+const S3_ACCESS_KEY_ID = process.env.S3_ACCESS_KEY_ID
+const S3_SECRET_ACCESS_KEY = process.env.S3_SECRET_ACCESS_KEY
+const S3_BUCKET = process.env.S3_BUCKET
+const S3_ENABLED = !!(S3_ENDPOINT && S3_ACCESS_KEY_ID && S3_SECRET_ACCESS_KEY && S3_BUCKET)
 
-export function blobStatus() {
+let s3Client: S3Client | null = null
+let s3InitError: string | null = null
+
+export function storageStatus() {
   return {
-    netlify: USE_BLOBS,
-    storeReady: blobStore !== null,
-    initError: blobInitError,
+    s3: S3_ENABLED,
+    storeReady: s3Client !== null,
+    initError: s3InitError,
   }
 }
 
-function blobApi() {
-  if (blobStore) return blobStore
-  if (!USE_BLOBS || blobInitError) return null
+function s3Api() {
+  if (s3Client) return s3Client
+  if (!S3_ENABLED || s3InitError) return null
   try {
-    blobStore = getStore(BLOB_STORE)
-    return blobStore
+    s3Client = new S3Client({
+      region: "auto",
+      endpoint: S3_ENDPOINT,
+      credentials: {
+        accessKeyId: S3_ACCESS_KEY_ID!,
+        secretAccessKey: S3_SECRET_ACCESS_KEY!,
+      },
+    })
+    return s3Client
   } catch (e) {
-    blobInitError = (e as Error).message
-    console.error("Netlify Blobs indisponível:", blobInitError)
+    s3InitError = (e as Error).message
+    console.error("S3 indisponível:", s3InitError)
     return null
+  }
+}
+
+async function s3Set(relativePath: string, buffer: Buffer) {
+  const client = s3Api()
+  if (!client) return false
+  try {
+    await client.send(
+      new PutObjectCommand({
+        Bucket: S3_BUCKET,
+        Key: relativePath,
+        Body: buffer,
+      }),
+    )
+    return true
+  } catch (e) {
+    console.error("S3 indisponível para gravação:", (e as Error).message)
+    return false
+  }
+}
+
+async function s3Get(relativePath: string): Promise<Buffer | null> {
+  const client = s3Api()
+  if (!client) return null
+  try {
+    const res = await client.send(
+      new GetObjectCommand({
+        Bucket: S3_BUCKET,
+        Key: relativePath,
+      }),
+    )
+    if (!res.Body) return null
+    const bytes = await res.Body.transformToByteArray()
+    return Buffer.from(bytes)
+  } catch (e) {
+    const status = (e as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode
+    if (status !== 404) console.error("S3 indisponível para leitura:", (e as Error).message)
+    return null
+  }
+}
+
+async function s3Delete(relativePath: string) {
+  const client = s3Api()
+  if (!client) return
+  try {
+    await client.send(
+      new DeleteObjectCommand({
+        Bucket: S3_BUCKET,
+        Key: relativePath,
+      }),
+    )
+  } catch (e) {
+    console.error("S3 indisponível para remoção:", (e as Error).message)
   }
 }
 
@@ -122,18 +186,7 @@ export async function saveFile(buffer: Buffer, options: { tenantId: string; subd
   const fileName = `${name}${ext}`
   const relativePath = path.join(safeSubdir, fileName).replace(/\\/g, "/")
 
-  if (USE_BLOBS) {
-    const store = blobApi()
-    if (store) {
-      try {
-        const buf = new Uint8Array(buffer)
-        await store.set(relativePath, buf as unknown as ArrayBuffer)
-        return relativePath
-      } catch (e) {
-        console.error("Blob store indisponível, gravando no banco:", e)
-      }
-    }
-  }
+  if (S3_ENABLED && (await s3Set(relativePath, buffer))) return relativePath
 
   try {
     await saveToDb(relativePath, buffer)
@@ -148,16 +201,9 @@ export async function saveFile(buffer: Buffer, options: { tenantId: string; subd
 }
 
 export async function readFileBuffer(relativePath: string): Promise<Buffer | null> {
-  if (USE_BLOBS) {
-    const store = blobApi()
-    if (store) {
-      try {
-        const data = (await store.get(relativePath, { type: "arrayBuffer" })) as ArrayBuffer | null
-        if (data) return Buffer.from(data)
-      } catch {
-        // blob indisponível — tenta o banco (fallback)
-      }
-    }
+  if (S3_ENABLED) {
+    const fromS3 = await s3Get(relativePath)
+    if (fromS3) return fromS3
   }
   const fromDb = await readFromDb(relativePath)
   if (fromDb) return fromDb
@@ -173,16 +219,7 @@ export async function readFileBuffer(relativePath: string): Promise<Buffer | nul
 
 export async function removeFile(relativePath?: string | null) {
   if (!relativePath) return
-  if (USE_BLOBS) {
-    const store = blobApi()
-    if (store) {
-      try {
-        await store.delete(relativePath)
-      } catch {
-        // blob já não existe ou indisponível
-      }
-    }
-  }
+  if (S3_ENABLED) await s3Delete(relativePath)
   await removeFromDb(relativePath)
   const abs = path.join(ROOT, path.normalize(relativePath))
   if (!abs.startsWith(ROOT)) return
@@ -257,23 +294,13 @@ export function resolveUploadMime(filename: string, declaredType: string, buffer
 const CHUNK_SUBDIR = "_chunks"
 
 /**
- * Upload em partes: cada pedaço é guardado isolado (blob ou disco) e só é
+ * Upload em partes: cada pedaço é guardado isolado (S3, banco ou disco) e só é
  * montado no último. Necessário para contornar o limite de corpo das funções
- * do Netlify (~6MB), mantendo arquivos de até 25MB.
+ * serverless (~4,5MB), mantendo arquivos de até 25MB.
  */
 export async function saveChunk(tenantId: string, uploadId: string, index: number, buffer: Buffer) {
   const rel = safeRelative(CHUNK_SUBDIR, tenantId, uploadId, `${index}.part`)
-  if (USE_BLOBS) {
-    const store = blobApi()
-    if (store) {
-      try {
-        await store.set(rel, new Uint8Array(buffer) as unknown as ArrayBuffer)
-        return
-      } catch (e) {
-        console.error("Blob store indisponível para chunk, gravando no banco:", e)
-      }
-    }
-  }
+  if (S3_ENABLED && (await s3Set(rel, buffer))) return
   try {
     await saveToDb(rel, buffer)
     return
@@ -287,17 +314,11 @@ export async function assembleChunks(tenantId: string, uploadId: string, total: 
   const parts: Buffer[] = []
   for (let i = 0; i < total; i++) {
     const rel = safeRelative(CHUNK_SUBDIR, tenantId, uploadId, `${i}.part`)
-    if (USE_BLOBS) {
-      const store = blobApi()
-      if (store) {
-        try {
-          const data = (await store.get(rel, { type: "arrayBuffer" })) as ArrayBuffer | null
-          if (!data) return null
-          parts.push(Buffer.from(data))
-          continue
-        } catch {
-          return null
-        }
+    if (S3_ENABLED) {
+      const fromS3 = await s3Get(rel)
+      if (fromS3) {
+        parts.push(fromS3)
+        continue
       }
     }
     const fromDb = await readFromDb(rel)
@@ -316,16 +337,7 @@ export async function dropChunks(tenantId: string, uploadId: string, total: numb
   if (total <= 0) return
   for (let i = 0; i < total; i++) {
     const rel = safeRelative(CHUNK_SUBDIR, tenantId, uploadId, `${i}.part`)
-    if (USE_BLOBS) {
-      const store = blobApi()
-      if (store) {
-        try {
-          await store.delete(rel)
-        } catch {
-          // já não existe
-        }
-      }
-    }
+    if (S3_ENABLED) await s3Delete(rel)
     await removeFromDb(rel)
     const abs = path.join(ROOT, rel)
     if (abs.startsWith(ROOT)) {

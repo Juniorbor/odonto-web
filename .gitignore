@@ -45,3 +45,6 @@ next-env.d.ts
 
 # local session notes (contains local infra credentials)
 /session.md
+
+# Local Netlify folder
+.netlify

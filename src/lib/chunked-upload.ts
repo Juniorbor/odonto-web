@@ -15,8 +15,8 @@ const UPLOAD_ID_RE = /^[a-zA-Z0-9_-]{8,80}$/
  * - Sem partes (upload único): valida o tamanho e devolve o buffer pronto.
  * - Com partes: guarda cada pedaço isolado e, no último, monta o arquivo
  *   completo e remove os pedaços temporários.
- * Isso contorna o limite de corpo (~6MB) das funções do Netlify sem perder o
- * limite final de 25MB.
+ * Isso contorna o limite de corpo (~4,5MB) das funções serverless sem perder
+ * o limite final de 25MB.
  */
 export async function receiveChunkedUpload(
   tenantId: string,

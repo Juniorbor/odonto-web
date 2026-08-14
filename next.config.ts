@@ -10,7 +10,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  serverExternalPackages: ["pg", "pdfmake", "@netlify/blobs"],
+  serverExternalPackages: ["pg", "pdfmake"],
 };
 
 export default nextConfig;
