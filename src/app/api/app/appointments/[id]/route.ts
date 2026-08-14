@@ -95,26 +95,40 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   if (!ctx.clinicId) return NextResponse.json({ error: "Sem clínica." }, { status: 400 })
 
   const { id } = await params
+  const hard = req.nextUrl.searchParams.get("hard") === "1"
   const existing = await prisma.appointment.findFirst({ where: { id, clinicId: ctx.clinicId } })
   if (!existing) return NextResponse.json({ error: "Atendimento não encontrado." }, { status: 404 })
 
   try {
-    await prisma.appointment.update({ where: { id }, data: { status: "CANCELLED" } })
-
-    await logAction({
-      userId: ctx.user.id,
-      tenantId: ctx.tenantId,
-      clinicId: ctx.clinicId,
-      action: "appointment_deleted",
-      entityType: "Appointment",
-      entityId: id,
-      details: { patientId: existing.patientId },
-      ip: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || null,
-    })
+    if (hard) {
+      await prisma.appointment.delete({ where: { id } })
+      await logAction({
+        userId: ctx.user.id,
+        tenantId: ctx.tenantId,
+        clinicId: ctx.clinicId,
+        action: "appointment_deleted_hard",
+        entityType: "Appointment",
+        entityId: id,
+        details: { patientId: existing.patientId, startsAt: existing.startsAt },
+        ip: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || null,
+      })
+    } else {
+      await prisma.appointment.update({ where: { id }, data: { status: "CANCELLED" } })
+      await logAction({
+        userId: ctx.user.id,
+        tenantId: ctx.tenantId,
+        clinicId: ctx.clinicId,
+        action: "appointment_deleted",
+        entityType: "Appointment",
+        entityId: id,
+        details: { patientId: existing.patientId },
+        ip: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || null,
+      })
+    }
 
     return NextResponse.json({ ok: true })
   } catch (e) {
     console.error("Delete appointment error:", e)
-    return NextResponse.json({ error: "Erro ao cancelar atendimento." }, { status: 500 })
+    return NextResponse.json({ error: hard ? "Erro ao excluir atendimento." : "Erro ao cancelar atendimento." }, { status: 500 })
   }
 }

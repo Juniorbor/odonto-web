@@ -16,6 +16,7 @@ import {
   Plus,
   Search,
   Stethoscope,
+  Trash2,
   UserCheck,
   UserPlus,
   X,
@@ -110,6 +111,7 @@ export function AgendaPage({
   const [quickPatient, setQuickPatient] = useState("")
   const [saving, setSaving] = useState(false)
   const [cancelling, setCancelling] = useState<AppointmentRow | null>(null)
+  const [deleting, setDeleting] = useState<AppointmentRow | null>(null)
   const [formDate, setFormDate] = useState(anchor)
   const [form, setForm] = useState({ patientId: "", professionalId: "", time: "09:00", duration: "30", type: "", notes: "" })
 
@@ -302,6 +304,26 @@ export function AgendaPage({
       setDetail(null)
       fetchAppointments(view, anchor)
       fetchMonth(calMonth)
+    } catch (e) {
+      toast((e as Error).message, "error")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const confirmDelete = async () => {
+    if (!deleting) return
+    setSaving(true)
+    try {
+      const res = await fetch(`/api/app/appointments/${deleting.id}?hard=1`, { method: "DELETE" })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Erro.")
+      toast("Atendimento excluído.", "success")
+      setDeleting(null)
+      setDetail(null)
+      fetchAppointments(view, anchor)
+      fetchMonth(calMonth)
+      router.refresh()
     } catch (e) {
       toast((e as Error).message, "error")
     } finally {
@@ -730,6 +752,15 @@ export function AgendaPage({
               >
                 <X className="h-3.5 w-3.5" /> Cancelar atendimento
               </Button>
+              <Button
+                variant="ghost"
+                className="text-rose-400/70 hover:bg-rose-500/10 hover:text-rose-300"
+                onClick={() => {
+                  setDeleting(detail)
+                }}
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Excluir da lista
+              </Button>
             </div>
           </div>
         )}
@@ -742,6 +773,16 @@ export function AgendaPage({
         title="Cancelar atendimento"
         message={`Deseja cancelar o atendimento de ${cancelling?.patient.fullName} às ${cancelling ? timeFmt(minutesOf(cancelling.startsAt)) : ""}?`}
         confirmLabel={saving ? "Cancelando..." : "Cancelar atendimento"}
+        danger
+      />
+
+      <ConfirmDialog
+        open={!!deleting}
+        onClose={() => setDeleting(null)}
+        onConfirm={confirmDelete}
+        title="Excluir atendimento"
+        message={`Excluir definitivamente o atendimento de ${deleting?.patient.fullName} às ${deleting ? timeFmt(minutesOf(deleting.startsAt)) : ""}? Esta ação não pode ser desfeita.`}
+        confirmLabel={saving ? "Excluindo..." : "Excluir da lista"}
         danger
       />
     </div>
