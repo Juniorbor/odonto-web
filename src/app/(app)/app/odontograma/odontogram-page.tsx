@@ -1,8 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Loader2, Paintbrush, Eraser, X as XIcon, CircleDot } from "lucide-react"
+import { Loader2, Paintbrush, Eraser, Save, X as XIcon, CircleDot } from "lucide-react"
 import { Card, CardBody } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Field, Select } from "@/components/ui/input"
@@ -28,6 +28,8 @@ export function OdontogramPage({
   const [selectedTooth, setSelectedTooth] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [dirty, setDirty] = useState(false)
+  const baselineRef = useRef<OdontoCondition[]>([])
   const [tool, setTool] = useState<DrawTool | null>(null)
   const [dotSize, setDotSize] = useState<DotSize>("M")
 
@@ -36,7 +38,12 @@ export function OdontogramPage({
     try {
       const res = await fetch(`/api/app/odontogram?patientId=${pid}`)
       const data = await res.json()
-      if (res.ok) setConditions(data.odontogram?.conditions ?? [])
+      if (res.ok) {
+        const list: OdontoCondition[] = data.odontogram?.conditions ?? []
+        setConditions(list)
+        baselineRef.current = list
+        setDirty(false)
+      }
     } finally {
       setLoading(false)
     }
@@ -49,62 +56,107 @@ export function OdontogramPage({
   const findMark = (tooth: number, surface: string) =>
     conditions.find((c) => c.toothNumber === tooth && c.surface === surface && c.shape && c.shape !== "NONE")
 
-  const refresh = async () => {
-    setLoading(true)
-    await load(patientId)
-    router.refresh()
-  }
-
-  const applyMark = async (tooth: number, surface: string) => {
+  const applyMark = (tooth: number, surface: string) => {
     if (!patientId) return
     if (!tool) {
       toast("Escolha uma ferramenta: X (ausente) ou ponto (cárie).", "info")
       return
     }
     const existing = findMark(tooth, surface)
-    setSaving(true)
-    try {
-      if (existing && existing.shape === tool) {
-        const res = await fetch(`/api/app/odontogram/${existing.id}`, { method: "DELETE" })
-        const data = await res.json()
-        if (!res.ok) throw new Error(data.error || "Erro ao remover.")
-        await refresh()
-        return
-      }
-
-      const payload = {
+    if (existing && existing.shape === tool) {
+      setConditions((cs) => cs.filter((c) => c.id !== existing.id))
+      setDirty(true)
+      return
+    }
+    if (existing) {
+      setConditions((cs) =>
+        cs.map((c) =>
+          c.id === existing.id
+            ? {
+                ...c,
+                condition: tool === "X" ? "EXTRAIDO" : "CARIE",
+                shape: tool,
+                size: tool === "DOT" ? dotSize : c.size,
+                color: tool === "DOT" ? "#ff0000" : c.color,
+              }
+            : c,
+        ),
+      )
+      setDirty(true)
+      return
+    }
+    setConditions((cs) => [
+      ...cs,
+      {
+        id: `tmp-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
         toothNumber: tooth,
         surface,
         condition: tool === "X" ? "EXTRAIDO" : "CARIE",
         shape: tool,
-        size: tool === "DOT" ? dotSize : undefined,
-        color: tool === "DOT" ? "#ff0000" : undefined,
-      }
+        size: tool === "DOT" ? dotSize : "M",
+        color: tool === "DOT" ? "#ff0000" : null,
+      },
+    ])
+    setDirty(true)
+  }
 
-      if (existing) {
-        const res = await fetch(`/api/app/odontogram/${existing.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        })
-        const data = await res.json()
-        if (!res.ok) throw new Error(data.error || "Erro ao atualizar.")
-      } else {
-        const res = await fetch("/api/app/odontogram", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ patientId, ...payload }),
-        })
-        const data = await res.json()
-        if (!res.ok) throw new Error(data.error || "Erro ao registrar.")
+  const saveAll = async (): Promise<boolean> => {
+    if (!patientId) return true
+    const baseline = baselineRef.current
+    const current = conditions
+    const baselineIds = new Set(baseline.map((c) => c.id))
+    const currentIds = new Set(current.map((c) => c.id))
+    const adds = current.filter((c) => !baselineIds.has(c.id))
+    const removes = baseline.filter((c) => !currentIds.has(c.id)).map((c) => c.id)
+    const updates = current.filter((c) => {
+      if (!baselineIds.has(c.id)) return false
+      const b = baseline.find((x) => x.id === c.id)!
+      return b.shape !== c.shape || b.condition !== c.condition || b.size !== c.size || b.color !== c.color
+    })
+    if (adds.length === 0 && removes.length === 0 && updates.length === 0) {
+      setDirty(false)
+      return true
+    }
+    setSaving(true)
+    try {
+      const res = await fetch("/api/app/odontogram/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ patientId, adds, updates, removes }),
+      })
+      const data = (await res.json()) as {
+        ok?: boolean
+        error?: string
+        created?: { tempId: string; id: string }[]
       }
-      toast(tool === "X" ? "Dente ausente marcado." : "Cárie marcada.", "success")
-      await refresh()
+      if (!res.ok) throw new Error(data.error || "Erro ao salvar.")
+      const idMap = new Map((data.created ?? []).map((c) => [c.tempId, c.id]))
+      const next = current.map((c) => (idMap.has(c.id) ? { ...c, id: idMap.get(c.id)! } : c))
+      baselineRef.current = next
+      setConditions(next)
+      setDirty(false)
+      toast("Odontograma salvo.", "success")
+      router.refresh()
+      return true
     } catch (e) {
       toast((e as Error).message, "error")
+      return false
     } finally {
       setSaving(false)
     }
+  }
+
+  const changePatient = async (pid: string) => {
+    if (pid === patientId) return
+    if (dirty) {
+      const ok = await saveAll()
+      if (!ok) return
+    }
+    setPatientId(pid)
+    setSelectedTooth(null)
+    setConditions([])
+    baselineRef.current = []
+    setDirty(false)
   }
 
   const selectTooth = (tooth: number) => {
@@ -121,13 +173,13 @@ export function OdontogramPage({
         <h1 className="text-2xl font-bold text-white">
           Odontograma <span className="text-gradient">digital</span>
         </h1>
-        <p className="mt-1 text-sm text-slate-500">Clique nos quadrados de cada dente para marcar ausência (X) ou cárie (ponto).</p>
+        <p className="mt-1 text-sm text-slate-500">Clique nos quadrados de cada dente para marcar ausência (X) ou cárie (ponto) e depois salve tudo de uma vez.</p>
       </div>
 
       <Card className="anim-fade-up">
         <CardBody>
           <Field label="Paciente">
-            <Select value={patientId} onChange={(e) => { setPatientId(e.target.value); setSelectedTooth(null); setConditions([]) }}>
+            <Select value={patientId} onChange={(e) => { void changePatient(e.target.value) }}>
               <option value="">Selecione o paciente</option>
               {patients.map((p) => <option key={p.id} value={p.id}>{p.fullName}</option>)}
             </Select>
@@ -200,9 +252,9 @@ export function OdontogramPage({
               <div className="ml-auto flex items-center gap-2 text-[11px] text-slate-500">
                 <Paintbrush className="h-3.5 w-3.5" />
                 {tool === "X"
-                  ? "Clique nos quadrados (M/D/V/L/O) para marcar ausente. Clique de novo para remover."
+                  ? "Clique nos quadrados (M/D/V/L/O) para marcar ausente. Clique de novo para remover. Salve ao finalizar."
                   : tool === "DOT"
-                    ? "Clique nos quadrados para marcar o ponto de cárie. Clique de novo para remover."
+                    ? "Clique nos quadrados para marcar o ponto de cárie. Clique de novo para remover. Salve ao finalizar."
                     : "Escolha uma ferramenta acima para começar a desenhar nos quadrados."}
               </div>
             </div>
@@ -224,7 +276,7 @@ export function OdontogramPage({
                 </div>
                 <p className="text-center text-[11px] text-slate-600">
                   Passe o mouse sobre um dente e clique no quadrado da superfície para marcar X (ausente) ou ponto (cárie),
-                  com o tamanho escolhido.
+                  com o tamanho escolhido. Ao terminar, clique em &quot;Salvar odontograma&quot;.
                 </p>
               </div>
             )}
@@ -241,8 +293,19 @@ export function OdontogramPage({
                 </span>
               </div>
               <span className="text-[11px] text-slate-600">
-                {conditions.filter((c) => c.shape && c.shape !== "NONE").length} marca(s) registrada(s)
+                {conditions.filter((c) => c.shape && c.shape !== "NONE").length} marca(s)
               </span>
+              <div className="flex items-center gap-2">
+                {dirty && (
+                  <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-amber-400">
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-400" />
+                    Alterações não salvas
+                  </span>
+                )}
+                <Button onClick={() => void saveAll()} disabled={!dirty || saving} loading={saving} size="sm">
+                  <Save className="h-3.5 w-3.5" /> Salvar odontograma
+                </Button>
+              </div>
             </div>
           </CardBody>
         </Card>
