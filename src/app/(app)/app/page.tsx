@@ -10,6 +10,7 @@ import {
 } from "lucide-react"
 import { Card, CardBody } from "@/components/ui/card"
 import { formatDate } from "@/lib/utils"
+import { RecentPatients } from "./recent-patients"
 
 export default async function AppDashboard() {
   const ctx = await requireSession()
@@ -45,12 +46,15 @@ export default async function AppDashboard() {
     { label: "Atendimentos no mês", value: appointmentsMonth, icon: <Stethoscope className="h-5 w-5" />, tone: "text-indigo-400 bg-indigo-500/10 border-indigo-500/25" },
   ]
 
-  const recentPatients = await prisma.patient.findMany({
-    where: ctx.isAdminMaster ? undefined : { clinicId: ctx.clinicId! },
-    orderBy: { createdAt: "desc" },
-    take: 5,
-    select: { id: true, fullName: true, phone: true, createdAt: true, clinic: { select: { name: true } } },
-  })
+  const [recentTotal, recentPatients] = await Promise.all([
+    prisma.patient.count({ where: ctx.isAdminMaster ? undefined : { clinicId: ctx.clinicId! } }),
+    prisma.patient.findMany({
+      where: ctx.isAdminMaster ? undefined : { clinicId: ctx.clinicId! },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+      select: { id: true, fullName: true, phone: true, createdAt: true, clinic: { select: { name: true } } },
+    }),
+  ])
 
   const upcomingAppointments = await prisma.appointment.findMany({
     where: {
@@ -131,38 +135,17 @@ export default async function AppDashboard() {
         </Card>
 
         {/* Últimos pacientes */}
-        <Card className="anim-fade-up">
-          <CardBody>
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-slate-100">Últimos pacientes</h3>
-              <Link href="/app/pacientes" className="inline-flex items-center gap-1 text-xs font-medium text-sky-400 hover:text-sky-300">
-                Ver todos <ArrowRight className="h-3 w-3" />
-              </Link>
-            </div>
-            {recentPatients.length === 0 ? (
-              <p className="py-8 text-center text-sm text-slate-600">Nenhum paciente cadastrado ainda.</p>
-            ) : (
-              <div className="space-y-2.5">
-                {recentPatients.map((p) => (
-                  <Link
-                    key={p.id}
-                    href={`/app/pacientes/${p.id}`}
-                    className="flex items-center justify-between rounded-xl border border-[#16213a] bg-[#0b1220] px-4 py-3 transition hover:border-sky-700/50"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-slate-200">{p.fullName}</p>
-                      <p className="text-xs text-slate-500">
-                        {p.phone || "Sem telefone"}
-                        {ctx.isAdminMaster && p.clinic ? ` • ${p.clinic.name}` : ""}
-                      </p>
-                    </div>
-                    <span className="text-[11px] text-slate-600">{formatDate(p.createdAt)}</span>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </CardBody>
-        </Card>
+        <RecentPatients
+          showClinic={ctx.isAdminMaster}
+          initialPatients={recentPatients.map((p) => ({
+            id: p.id,
+            fullName: p.fullName,
+            phone: p.phone,
+            createdAt: p.createdAt.toISOString(),
+            clinic: p.clinic ? { name: p.clinic.name } : null,
+          }))}
+          initialTotal={recentTotal}
+        />
       </div>
     </div>
   )

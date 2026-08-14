@@ -36,11 +36,12 @@ export async function GET(req: NextRequest) {
   const q = (req.nextUrl.searchParams.get("q") || "").trim()
   const status = req.nextUrl.searchParams.get("status") || "all"
   const page = Math.max(1, parseInt(req.nextUrl.searchParams.get("page") || "1", 10) || 1)
-  const pageSize = 20
+  const pageSize = Math.min(50, Math.max(1, parseInt(req.nextUrl.searchParams.get("pageSize") || "20", 10) || 20))
 
   const where: Record<string, unknown> = { clinicId: ctx.clinicId }
   if (q) {
     where.OR = [
+      { id: { contains: q, mode: "insensitive" } },
       { fullName: { contains: q, mode: "insensitive" } },
       { cpf: { contains: q } },
       { phone: { contains: q } },
@@ -70,6 +71,7 @@ export async function GET(req: NextRequest) {
         email: true,
         active: true,
         createdAt: true,
+        clinic: { select: { name: true } },
         _count: { select: { appointments: true, clinicalRecords: true } },
       },
     }),
