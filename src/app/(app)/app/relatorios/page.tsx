@@ -3,8 +3,8 @@ import { redirect } from "next/navigation"
 import { prisma } from "@/lib/prisma"
 import { BarChart3, Briefcase, TrendingUp, Users, Wallet } from "lucide-react"
 import { Card, CardBody } from "@/components/ui/card"
-import { EmptyState } from "@/components/ui/feedback"
 import { formatCurrency } from "@/lib/utils"
+import { ReportsPanel } from "./reports-page"
 
 export default async function RelatoriosIndex() {
   const ctx = await requireSession()
@@ -124,15 +124,7 @@ export default async function RelatoriosIndex() {
         ))}
       </div>
 
-      <Card className="anim-fade-up">
-        <CardBody>
-          <EmptyState
-            icon="file"
-            title="Relatórios detalhados"
-            description="Filtros avançados por período, profissional e procedimento serão liberados nas próximas versões."
-          />
-        </CardBody>
-      </Card>
+      <ReportsPanel />
     </div>
   )
 }
