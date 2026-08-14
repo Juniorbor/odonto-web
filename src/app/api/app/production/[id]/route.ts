@@ -8,6 +8,7 @@ import { z } from "zod"
 const updateSchema = z.object({
   date: z.string().optional(),
   patientName: z.string().max(190).optional().or(z.literal("")),
+  patientCode: z.string().max(60).optional().or(z.literal("")),
   serviceName: z.string().min(2).max(190).optional(),
   categoryId: z.string().optional().or(z.literal("")),
   value: z.coerce.number().min(0).max(99999999).optional(),
@@ -35,6 +36,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const data: Record<string, unknown> = {}
     if (d.date) data.date = parseLocalDate(d.date)!
     if (d.patientName !== undefined) data.patientName = d.patientName || null
+    if (d.patientCode !== undefined) data.patientCode = d.patientCode || null
     if (d.serviceName !== undefined) data.serviceName = d.serviceName
     if (d.categoryId !== undefined) data.categoryId = d.categoryId || null
     if (d.value !== undefined) data.value = d.value

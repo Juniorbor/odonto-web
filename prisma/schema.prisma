@@ -664,6 +664,7 @@ model ProductionRecord {
   date                DateTime            @default(now())
   patientName         String?
   patientId           String?
+  patientCode         String?
   patient             Patient?            @relation(fields: [patientId], references: [id], onDelete: SetNull)
   professionalName    String?
   professionalId      String?

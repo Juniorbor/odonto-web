@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Briefcase, Plus, Search, Trash2, TrendingUp } from "lucide-react"
+import { Briefcase, Plus, Trash2, TrendingUp } from "lucide-react"
 import { Card, CardBody, Badge } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Field, Input, Select, Textarea } from "@/components/ui/input"
@@ -26,17 +26,6 @@ type ProdRow = {
   notes: string | null
   category: { id: string; name: string } | null
 }
-type ProdPatient = { id: string; fullName: string; city: string | null }
-
-const PATIENT_CITIES = [
-  "Ariquemes",
-  "Cacoal",
-  "Jí-Paraná",
-  "Ouro Preto",
-  "Machadinho",
-  "Rolim de Moura",
-  "Porto Velho",
-]
 
 const TYPE_LABEL: Record<string, string> = {
   TOMO: "Tomografia",
@@ -68,11 +57,9 @@ const parseBRL = (v: string): number => {
 }
 
 export function ProductionPage({
-  patients,
   categories,
   canManageCategories,
 }: {
-  patients: ProdPatient[]
   categories: ProdCat[]
   canManageCategories: boolean
 }) {
@@ -86,11 +73,9 @@ export function ProductionPage({
   const [showNew, setShowNew] = useState(false)
   const [saving, setSaving] = useState(false)
   const [removing, setRemoving] = useState<ProdRow | null>(null)
-  const [query, setQuery] = useState("")
-  const [cityFilter, setCityFilter] = useState("")
-  const [selectedPatient, setSelectedPatient] = useState<ProdPatient | null>(null)
   const [form, setForm] = useState({
     date: `${month}-01`,
+    patientCode: "",
     patientName: "",
     serviceName: "",
     serviceChoice: "",
@@ -154,7 +139,6 @@ export function ProductionPage({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
-          patientId: selectedPatient?.id,
           value: valueNum,
           serviceType: form.serviceType || "OUTRO",
         }),
@@ -163,10 +147,7 @@ export function ProductionPage({
       if (!res.ok) throw new Error(data.error || "Erro ao registrar.")
       toast(`Produção registrada — ${data.code}`, "success")
       setShowNew(false)
-      setSelectedPatient(null)
-      setQuery("")
-      setCityFilter("")
-      setForm({ date: `${month}-01`, patientName: "", serviceName: "", serviceChoice: "", serviceType: "", categoryId: "", value: "", status: "DONE", notes: "" })
+      setForm({ date: `${month}-01`, patientCode: "", patientName: "", serviceName: "", serviceChoice: "", serviceType: "", categoryId: "", value: "", status: "DONE", notes: "" })
       fetchMonth(month)
       router.refresh()
     } catch (e) {
@@ -192,26 +173,6 @@ export function ProductionPage({
       setSaving(false)
     }
   }
-
-  const knownCities = Array.from(
-    new Set(patients.map((p) => p.city?.trim()).filter((c): c is string => !!c && c !== "" && c.toLowerCase() !== "outro")),
-  ).sort()
-
-  const cityOptions = Array.from(new Set([...PATIENT_CITIES, ...knownCities])).sort((a, b) =>
-    a.localeCompare(b, "pt-BR"),
-  )
-
-  const filterInput = query.trim().toLowerCase()
-  const filtered = patients
-    .filter((p) => {
-      const matchesQuery =
-        !filterInput ||
-        p.fullName.toLowerCase().includes(filterInput) ||
-        (p.city ?? "").toLowerCase().includes(filterInput)
-      const matchesCity = !cityFilter || (p.city ?? "").toLowerCase() === cityFilter.toLowerCase()
-      return matchesQuery && matchesCity
-    })
-    .slice(0, 30)
 
   const grouped = GROUPS.map((g) => {
     const items = rows.filter((r) =>
@@ -383,98 +344,24 @@ export function ProductionPage({
               </Select>
             </Field>
           </div>
-          <Field label="Paciente">
-            {selectedPatient ? (
-              <div className="flex items-center justify-between gap-2 rounded-xl border border-sky-500/30 bg-sky-500/10 px-3 py-2.5">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-sky-200">{selectedPatient.fullName}</p>
-                  <p className="text-[11px] text-slate-500">{selectedPatient.city || "Cidade não informada"}</p>
-                </div>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => {
-                    setSelectedPatient(null)
-                    setQuery("")
-                    set("patientName", "")
-                  }}
-                >
-                  Trocar
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_170px]">
-                  <div className="relative">
-                    <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-500" />
-                    <Input
-                      value={query}
-                      onChange={(e) => setQuery(e.target.value)}
-                      placeholder="Buscar por nome ou cidade..."
-                      className="pl-9"
-                    />
-                  </div>
-                  <Select value={cityFilter} onChange={(e) => setCityFilter(e.target.value)}>
-                    <option value="">Todas as cidades</option>
-                    {cityOptions.map((c) => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </Select>
-                </div>
-
-                {query || cityFilter ? (
-                  filtered.length > 0 ? (
-                    <div className="max-h-56 space-y-1 overflow-y-auto rounded-xl border border-[#1c2942] bg-[#0a1120] p-1.5">
-                      {filtered.map((p) => (
-                        <button
-                          key={p.id}
-                          type="button"
-                          onClick={() => {
-                            setSelectedPatient(p)
-                            setQuery("")
-                            setCityFilter("")
-                            set("patientName", p.fullName)
-                          }}
-                          className="flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm text-slate-300 transition hover:bg-sky-500/10 hover:text-sky-200"
-                        >
-                          <span className="truncate">{p.fullName}</span>
-                          <span className="shrink-0 text-[11px] text-slate-500">{p.city || "—"}</span>
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="rounded-xl border border-[#1c2942] bg-[#0a1120] px-3 py-2 text-xs text-slate-500">
-                      Nenhum paciente encontrado.
-                    </p>
-                  )
-                ) : (
-                  patients.length > 0 && (
-                    <div className="max-h-56 space-y-1 overflow-y-auto rounded-xl border border-[#1c2942] bg-[#0a1120] p-1.5">
-                      {patients.slice(0, 20).map((p) => (
-                        <button
-                          key={p.id}
-                          type="button"
-                          onClick={() => {
-                            setSelectedPatient(p)
-                            set("patientName", p.fullName)
-                          }}
-                          className="flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm text-slate-300 transition hover:bg-sky-500/10 hover:text-sky-200"
-                        >
-                          <span className="truncate">{p.fullName}</span>
-                          <span className="shrink-0 text-[11px] text-slate-500">{p.city || "—"}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )
-                )}
-                <p className="text-[11px] text-slate-600">
-                  {patients.length > 0
-                    ? `${patients.length} paciente${patients.length === 1 ? "" : "s"} na clínica · pesquise por nome ou cidade`
-                    : "Sem pacientes cadastrados."}
-                </p>
-              </div>
-            )}
-          </Field>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="ID do Paciente">
+              <Input
+                value={form.patientCode}
+                onChange={(e) => set("patientCode", e.target.value)}
+                placeholder="Código do paciente"
+                maxLength={60}
+              />
+            </Field>
+            <Field label="Paciente">
+              <Input
+                value={form.patientName}
+                onChange={(e) => set("patientName", e.target.value)}
+                placeholder="Nome do paciente (pode ser qualquer nome)"
+                maxLength={190}
+              />
+            </Field>
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Valor (R$)" required>
               <Input
