@@ -4,8 +4,14 @@ import { PrismaPg } from "@prisma/adapter-pg"
 import { Pool } from "pg"
 
 function createClient() {
+  // Conexão direta (sem pooler) tem menor latência por query. Falls back para DATABASE_URL.
+  const connectionString = process.env.DATABASE_URL_DIRECT || process.env.DATABASE_URL!
   const pool = new Pool({
-    connectionString: process.env.DATABASE_URL!,
+    connectionString,
+    max: 5,
+    idleTimeoutMillis: 30_000,
+    connectionTimeoutMillis: 10_000,
+    keepAlive: true,
   })
   const adapter = new PrismaPg(pool)
   return new PrismaClient({ adapter })

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
-import { requireSession } from "@/lib/auth"
+import { requireSession, hashPassword, clearSessionCache } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { hashPassword } from "@/lib/auth"
 import { logAction } from "@/lib/audit"
 import { z } from "zod"
 
@@ -46,6 +45,8 @@ export async function PATCH(req: NextRequest) {
     }
 
     const user = await prisma.user.update({ where: { id: ctx.user.id }, data })
+
+    clearSessionCache(user.id)
 
     await logAction({
       userId: ctx.user.id,

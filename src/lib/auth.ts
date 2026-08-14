@@ -5,7 +5,7 @@ import { redirect } from "next/navigation"
 import bcrypt from "bcryptjs"
 import crypto from "crypto"
 import { prisma } from "@/lib/prisma"
-import type { UserRole, TenantStatus } from "@prisma/client"
+import type { UserRole } from "@prisma/client"
 
 const SESSION_COOKIE = "odc_session"
 const IMPERSONATION_COOKIE = "odc_impersonate"
@@ -133,14 +133,9 @@ async function getImpersonationContext(user: {
 }
 
 /** Carrega o usuário e seu contexto de tenant a partir do cookie de sessão. Retorna null se não autenticado ou suspenso. */
-export async function getSessionContext(): Promise<SessionContext | null> {
-  const token = await getSessionToken()
-  if (!token) return null
-  const payload = await verifyToken(token)
-  if (!payload?.userId) return null
-
+async function loadSessionContext(userId: string): Promise<SessionContext | null> {
   const user = await prisma.user.findUnique({
-    where: { id: payload.userId },
+    where: { id: userId },
     select: {
       id: true,
       name: true,
@@ -201,6 +196,33 @@ export async function getSessionContext(): Promise<SessionContext | null> {
     isAdminMaster: false,
     impersonating: false,
   }
+}
+
+// Cache em memória do contexto de sessão: evita 3 consultas ao banco por requisição.
+// O token JWT já garante a identidade; o cache apenas reflete mudanças de permissões com atraso de 60s.
+const SESSION_CACHE_TTL_MS = 60_000
+const sessionCache = new Map<string, { ctx: SessionContext; expiresAt: number }>()
+
+export function clearSessionCache(userId: string) {
+  sessionCache.delete(userId)
+}
+
+export async function getSessionContext(): Promise<SessionContext | null> {
+  const token = await getSessionToken()
+  if (!token) return null
+  const payload = await verifyToken(token)
+  if (!payload?.userId) return null
+
+  const cached = sessionCache.get(payload.userId)
+  if (cached && cached.expiresAt > Date.now()) return cached.ctx
+
+  const ctx = await loadSessionContext(payload.userId)
+  if (ctx) {
+    sessionCache.set(payload.userId, { ctx, expiresAt: Date.now() + SESSION_CACHE_TTL_MS })
+  } else {
+    sessionCache.delete(payload.userId)
+  }
+  return ctx
 }
 
 export const ALL_MODULES = [
