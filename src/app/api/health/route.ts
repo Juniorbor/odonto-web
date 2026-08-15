@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { storageStatus } from "@/lib/storage"
+import { whatsappStatus } from "@/lib/whatsapp"
 
 export const dynamic = "force-dynamic"
 
@@ -24,6 +25,7 @@ export async function GET() {
     jwtSet,
     dbConnect,
     blob: storageStatus(),
+    whatsapp: whatsappStatus(),
     nodeEnv: process.env.NODE_ENV,
   })
 }

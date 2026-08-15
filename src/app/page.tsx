@@ -8,9 +8,15 @@ import {
   EyeOff,
   Lock,
   Mail,
+  MessageCircle,
+  Sparkles,
+  User,
+  Phone,
+  CheckCircle2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input, Field } from "@/components/ui/input"
+import { Modal } from "@/components/ui/modal"
 import { useToast } from "@/components/ui/toaster"
 import { ToothLogo } from "@/components/ui/tooth-logo"
 
@@ -23,6 +29,8 @@ export default function LoginPage() {
   const [remember, setRemember] = useState(true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  const [trialOpen, setTrialOpen] = useState(false)
+  const [trialDone, setTrialDone] = useState<{ message: string; credentials?: { email: string; password: string } } | null>(null)
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -135,9 +143,23 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          <p className="mt-8 text-center text-xs text-slate-600">
-            Não tem conta? <Link href="/contato" className="text-sky-400 hover:text-sky-300">Fale com a nossa equipe comercial</Link>
-          </p>
+          <div className="mt-8 space-y-4">
+            <div className="flex items-center gap-3">
+              <span className="h-px flex-1 bg-[#1c2942]" />
+              <span className="text-[11px] font-medium uppercase tracking-wider text-slate-600">Novo por aqui?</span>
+              <span className="h-px flex-1 bg-[#1c2942]" />
+            </div>
+            <Button type="button" variant="secondary" className="w-full" size="lg" onClick={() => setTrialOpen(true)}>
+              <Sparkles className="h-4 w-4" />
+              Experimente grátis por 7 dias
+            </Button>
+            <p className="text-center text-xs text-slate-600">
+              Não tem conta?{" "}
+              <Link href="/contato" className="text-sky-400 hover:text-sky-300">
+                Fale com a nossa equipe comercial
+              </Link>
+            </p>
+          </div>
         </div>
 
         {/* Coluna direita: radiografia panorâmica */}
@@ -146,7 +168,142 @@ export default function LoginPage() {
           <PanoramicImage />
         </div>
       </div>
+
+      <TrialModal
+        open={trialOpen}
+        onClose={() => {
+          setTrialOpen(false)
+          setTrialDone(null)
+        }}
+        onDone={(result) => setTrialDone(result)}
+        done={trialDone}
+      />
     </div>
+  )
+}
+
+/* ---------- Modal de teste gratuito (7 dias) ---------- */
+
+function TrialModal({
+  open,
+  onClose,
+  onDone,
+  done,
+}: {
+  open: boolean
+  onClose: () => void
+  onDone: (result: { message: string; credentials?: { email: string; password: string } }) => void
+  done: { message: string; credentials?: { email: string; password: string } } | null
+}) {
+  const { toast } = useToast()
+  const [name, setName] = useState("")
+  const [trialEmail, setTrialEmail] = useState("")
+  const [whatsapp, setWhatsapp] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError("")
+    setLoading(true)
+    try {
+      const res = await fetch("/api/auth/trial", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email: trialEmail, whatsapp }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.error || "Erro ao solicitar o teste.")
+        return
+      }
+      toast(data.message, data.whatsappSent ? "success" : "info")
+      onDone({ message: data.message, credentials: data.credentials })
+    } catch {
+      setError("Erro de conexão. Tente novamente.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title="Teste grátis por 7 dias" subtitle="Receba seu acesso de usuário e senha no WhatsApp." size="sm">
+      {done ? (
+        <div className="space-y-4 py-2">
+          <div className="flex items-start gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3">
+            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-400" />
+            <p className="text-sm text-emerald-200">{done.message}</p>
+          </div>
+          {done.credentials && (
+            <div className="space-y-2 rounded-xl border border-[#23345a] bg-[#0a1120] px-4 py-3.5">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Seus dados de acesso</p>
+              <div className="space-y-1.5 text-sm">
+                <p className="text-slate-300">
+                  <span className="text-slate-500">E-mail:</span> <span className="font-mono text-sky-300">{done.credentials.email}</span>
+                </p>
+                <p className="text-slate-300">
+                  <span className="text-slate-500">Senha:</span> <span className="font-mono text-sky-300">{done.credentials.password}</span>
+                </p>
+              </div>
+            </div>
+          )}
+          <Button className="w-full" onClick={onClose}>
+            Entendi
+          </Button>
+        </div>
+      ) : (
+        <form onSubmit={submit} className="space-y-4 py-1">
+          <Field label="Seu nome" required>
+            <div className="relative">
+              <User className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-600" />
+              <Input
+                required
+                minLength={2}
+                placeholder="Dr(a). Nome do responsável"
+                className="pl-10"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </div>
+          </Field>
+          <Field label="E-mail" required>
+            <div className="relative">
+              <Mail className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-600" />
+              <Input
+                type="email"
+                required
+                placeholder="voce@clinica.com.br"
+                className="pl-10"
+                value={trialEmail}
+                onChange={(e) => setTrialEmail(e.target.value)}
+              />
+            </div>
+          </Field>
+          <Field label="WhatsApp" required hint="Você receberá o usuário e a senha por aqui.">
+            <div className="relative">
+              <Phone className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-600" />
+              <Input
+                required
+                inputMode="tel"
+                placeholder="(69) 9 9999-9999"
+                className="pl-10"
+                value={whatsapp}
+                onChange={(e) => setWhatsapp(e.target.value)}
+              />
+            </div>
+          </Field>
+          {error && (
+            <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
+              {error}
+            </div>
+          )}
+          <Button type="submit" className="w-full" loading={loading}>
+            {!loading && <MessageCircle className="h-4 w-4" />}
+            Quero testar por 7 dias
+          </Button>
+        </form>
+      )}
+    </Modal>
   )
 }
 
