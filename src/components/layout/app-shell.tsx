@@ -97,11 +97,11 @@ const MENU: { group: string; items: NavItem[] }[] = [
 ]
 
 const ADMIN_MENU: NavItem[] = [
-  { label: "Clientes", href: "/admin/clientes", icon: <Building2 className="h-[18px] w-[18px]" /> },
-  { label: "Planos", href: "/admin/planos", icon: <Activity className="h-[18px] w-[18px]" /> },
-  { label: "Logs & Auditoria", href: "/admin/logs", icon: <ClipboardList className="h-[18px] w-[18px]" /> },
-  { label: "Backup", href: "/admin/backup", icon: <HardDriveDownload className="h-[18px] w-[18px]" /> },
-  { label: "Configurações", href: "/admin/configuracoes", icon: <Settings className="h-[18px] w-[18px]" /> },
+  { label: "Clientes", href: "/admin/clientes", icon: <Building2 className="h-[18px] w-[18px]" />, adminSafe: true },
+  { label: "Planos", href: "/admin/planos", icon: <Activity className="h-[18px] w-[18px]" />, adminSafe: true },
+  { label: "Logs & Auditoria", href: "/admin/logs", icon: <ClipboardList className="h-[18px] w-[18px]" />, adminSafe: true },
+  { label: "Backup", href: "/admin/backup", icon: <HardDriveDownload className="h-[18px] w-[18px]" />, adminSafe: true },
+  { label: "Configurações", href: "/admin/configuracoes", icon: <Settings className="h-[18px] w-[18px]" />, adminSafe: true },
 ]
 
 export type ShellUser = {
@@ -134,6 +134,7 @@ export function AppShell({
   const [collapsed, setCollapsed] = useState(false)
 
   const hasMod = (item: NavItem) => {
+    if (isAdminMaster && !impersonating) return !!item.adminSafe
     if (item.clinicOnly && isAdminMaster && !impersonating) return false
     if (isAdminMaster) return true
     if (!item.module) return true
