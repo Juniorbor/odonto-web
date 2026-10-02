@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import { ToastProvider } from "@/components/ui/toaster";
+import { ServiceWorkerRegistration } from "@/components/layout/service-worker";
 
 const inter = localFont({
   src: "../fonts/inter-var.woff2",
@@ -14,22 +15,22 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   viewportFit: "cover",
-  themeColor: "#05070d",
+  themeColor: "#ec4899",
 };
 
 export const metadata: Metadata = {
-  title: "Odontoweb — Plataforma Odontológica Profissional",
+  title: "Eliz Decora Festas — Sistema Web de Gestão & Decorações",
   description:
-    "Plataforma completa de gestão odontológica: pacientes, anamnese, odontograma, radiografias, IA, produção, financeiro e relatórios.",
+    "Plataforma comercial completa para a Eliz Decora Festas: catálogo digital 3D, controle de estoque, orçamentos em PDF, vendas, galeria de decorações, financeiro e relatórios.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
-    title: "Odontoweb",
+    statusBarStyle: "default",
+    title: "Eliz Decora Festas",
   },
   icons: {
-    icon: "/icons/icon-192.png",
-    apple: "/icons/icon-192.png",
+    icon: "/logo.jpg",
+    apple: "/logo.jpg",
   },
 };
 
@@ -42,25 +43,11 @@ export default function RootLayout({
     <html lang="pt-BR" data-scroll-behavior="smooth" className={`${inter.variable} h-full antialiased`}>
       <head>
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
-      <body className="min-h-full bg-background text-text">
+      <body className="min-h-full bg-[var(--background-soft)] text-[var(--color-text-main)]">
         <ToastProvider>{children}</ToastProvider>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              if ('serviceWorker' in navigator) {
-                window.addEventListener('load', function() {
-                  navigator.serviceWorker.register('/sw.js').catch(function(err) {
-                    console.log('SW registration failed:', err);
-                  });
-                });
-              }
-            `,
-          }}
-        />
+        <ServiceWorkerRegistration />
       </body>
     </html>
   );
 }
-

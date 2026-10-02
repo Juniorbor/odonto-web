@@ -1,97 +1,56 @@
-import "dotenv/config"
 import { PrismaClient } from "@prisma/client"
+import { PrismaLibSql } from "@prisma/adapter-libsql"
 import bcrypt from "bcryptjs"
-import { PrismaPg } from "@prisma/adapter-pg"
-import { Pool } from "pg"
 
-const prisma = new PrismaClient({
-  adapter: new PrismaPg(new Pool({ connectionString: process.env.DATABASE_URL! })),
-})
+const adapter = new PrismaLibSql({ url: "file:dev.db" })
+const prisma = new PrismaClient({ adapter })
 
 async function main() {
-  const passwordHash = await bcrypt.hash("Admin@2026", 12)
+  console.log("Seeding Eliz Decora Festas clean database...")
 
-  const admin = await prisma.user.upsert({
-    where: { email: "admin@odontoweb.com.br" },
+  // Password for initial admin user: "123456"
+  const passwordHash = await bcrypt.hash("123456", 10)
+
+  // 1. Initial Master Admin User
+  await prisma.user.upsert({
+    where: { email: "admin@elizdecorafestas.com.br" },
     update: {},
     create: {
       name: "Administrador Master",
-      email: "admin@odontoweb.com.br",
+      email: "admin@elizdecorafestas.com.br",
       passwordHash,
-      role: "ADMIN_MASTER",
-      title: "Administrador",
+      role: "ADMIN",
+      title: "Administrador Geral",
+      phone: "(11) 98888-7777",
+      permissions: JSON.stringify(["ALL"]),
     },
   })
-  console.log("Admin master:", admin.email, "/ senha: Admin@2026")
 
-  const plans = [
-    {
-      name: "Básico",
-      description: "Pacientes, anamnese e atendimento",
-      price: 99,
-      modules: ["patients", "anamnesis", "appointments"],
-      userLimit: 2,
-      storageLimitBytes: BigInt(5) * BigInt(1073741824),
+  // 2. Company Settings
+  await prisma.companySettings.upsert({
+    where: { id: "default" },
+    update: {
+      companyName: "Eliz Decora Festas",
+      email: "contato@elizdecorafestas.com.br",
     },
-    {
-      name: "Profissional",
-      description: "Tudo do Básico + odontograma, imagens, radiografias, relatórios e IA",
-      price: 199,
-      modules: ["patients", "anamnesis", "appointments", "odontogram", "images", "radiographs", "reports", "ai"],
-      userLimit: 5,
-      storageLimitBytes: BigInt(25) * BigInt(1073741824),
+    create: {
+      id: "default",
+      companyName: "Eliz Decora Festas",
+      slogan: "Transformando momentos especiais em experiências inesquecíveis.",
+      cnpj: "12.345.678/0001-99",
+      phone: "(11) 98888-7777",
+      whatsapp: "(11) 98888-7777",
+      email: "contato@elizdecorafestas.com.br",
+      address: "Av. das Festas, 1000 - São Paulo, SP",
+      logoUrl: "/logo.jpg",
+      primaryColor: "#EC4899",
+      secondaryColor: "#0284C7",
+      accentColor: "#F59E0B",
+      themeMode: "light",
     },
-    {
-      name: "Premium",
-      description: "Todos os módulos, produção, financeiro e IA avançada",
-      price: 349,
-      modules: [
-        "patients",
-        "anamnesis",
-        "appointments",
-        "odontogram",
-        "images",
-        "radiographs",
-        "reports",
-        "ai",
-        "production",
-        "finance",
-        "agenda",
-        "documents",
-      ],
-      userLimit: 15,
-      storageLimitBytes: BigInt(100) * BigInt(1073741824),
-    },
-  ]
+  })
 
-  for (const plan of plans) {
-    const existing = await prisma.plan.findFirst({ where: { name: plan.name, isGlobal: true } })
-    if (!existing) {
-      await prisma.plan.create({ data: { ...plan, isGlobal: true, price: plan.price as unknown as any } })
-    }
-  }
-
-  const settings: Record<string, unknown> = {
-    appName: "Odontoweb",
-    logoUrl: null,
-    faviconUrl: null,
-    primaryColor: "#0ea5e9",
-    whatsapp: "",
-    instagram: "https://instagram.com",
-    contactEmail: "contato@odontoweb.com.br",
-    commercialInfo: "Sistema de gestão odontológica profissional",
-    privacyPolicy: "Sua privacidade é importante...",
-    termsOfUse: "Termos de uso...",
-  }
-
-  for (const [key, value] of Object.entries(settings)) {
-    const existing = await prisma.setting.findUnique({ where: { key } })
-    if (!existing) {
-      await prisma.setting.create({ data: { key, value: value as never } })
-    }
-  }
-
-  console.log("Seed concluído.")
+  console.log("Clean seeding finished successfully for Eliz Decora Festas!")
 }
 
 main()
@@ -99,4 +58,6 @@ main()
     console.error(e)
     process.exit(1)
   })
-  .finally(() => prisma.$disconnect())
+  .finally(async () => {
+    await prisma.$disconnect()
+  })

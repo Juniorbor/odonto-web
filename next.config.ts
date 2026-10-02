@@ -11,6 +11,14 @@ const nextConfig: NextConfig = {
     ],
   },
   serverExternalPackages: ["pg", "pdfmake"],
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
+      },
+    ],
+  },
 };
 
 export default nextConfig;

@@ -1,9 +1,9 @@
 services:
   - type: web
-    name: odonto-web
+    name: eliz-decora-festas
     runtime: node
     plan: free
-    buildCommand: npm ci && npx prisma generate && npx prisma migrate deploy && npx prisma db seed && npm run build
+    buildCommand: npm ci && npx prisma generate && npx prisma db push && npm run build
     startCommand: npm start
     healthCheckPath: /login
     envVars:
@@ -11,15 +11,12 @@ services:
         value: "22"
       - key: DATABASE_URL
         sync: false
-        # Postgres do Neon (já em uso pela produção, não expira). Preencha a
-        # connection string no passo de revisão do Blueprint:
-        # postgresql://user:pass@ep-xxx-pooler.sa-east-1.aws.neon.tech/neondb?sslmode=require
       - key: JWT_SECRET
         generateValue: true
       - key: NEXT_PUBLIC_APP_NAME
-        value: OdontoCloud
+        value: Eliz Decora Festas
       - key: NEXT_PUBLIC_APP_URL
         sync: false
-        value: https://odonto-web.onrender.com
+        value: https://eliz-decora-festas.onrender.com
       - key: STORAGE_DIR
         value: /var/data/storage

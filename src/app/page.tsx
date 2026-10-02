@@ -1,478 +1,325 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
-import { useRouter } from "next/navigation"
+import React from "react"
 import Link from "next/link"
-import {
-  Eye,
-  EyeOff,
-  Lock,
-  Mail,
-  MessageCircle,
-  Sparkles,
-  User,
-  Phone,
+import Image from "next/image"
+import { 
+  Sparkles, 
+  PartyPopper, 
+  ChevronRight, 
+  Calendar, 
+  Award, 
+  Smile, 
+  Star, 
+  ArrowRight,
+  Heart,
+  Package,
+  Layers,
+  PhoneCall,
   CheckCircle2,
+  Lock
 } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input, Field } from "@/components/ui/input"
-import { Modal } from "@/components/ui/modal"
-import { useToast } from "@/components/ui/toaster"
-import { ToothLogo } from "@/components/ui/tooth-logo"
 
-export default function LoginPage() {
-  const router = useRouter()
-  const { toast } = useToast()
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [showPassword, setShowPassword] = useState(false)
-  const [remember, setRemember] = useState(true)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState("")
-  const [trialOpen, setTrialOpen] = useState(false)
-  const [trialDone, setTrialDone] = useState<{ message: string; credentials?: { email: string; password: string } } | null>(null)
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
-    setLoading(true)
-    try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, remember }),
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        setError(data.error || "Erro ao entrar.")
-        return
-      }
-      toast(`Bem-vindo(a), ${data.user.name.split(" ")[0]}!`, "success")
-      router.push("/app")
-      router.refresh()
-    } catch {
-      setError("Erro de conexão. Tente novamente.")
-    } finally {
-      setLoading(false)
-    }
-  }
-
+export default function LandingPage() {
   return (
-    <div className="bg-glow relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10">
-      <div className="bg-grid pointer-events-none absolute inset-0 opacity-60" />
+    <div className="min-h-screen bg-slate-50 text-slate-900 overflow-x-hidden selection:bg-pink-500 selection:text-white">
+      {/* Dynamic Ambient Background Glow */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+        <div className="absolute -top-40 -left-40 w-96 h-96 bg-pink-300/40 rounded-full blur-3xl animate-pulse-glow" />
+        <div className="absolute top-1/3 -right-20 w-96 h-96 bg-sky-300/40 rounded-full blur-3xl" />
+        <div className="absolute bottom-10 left-1/4 w-96 h-96 bg-amber-200/40 rounded-full blur-3xl" />
+      </div>
 
-      <div className="anim-fade-up relative z-10 grid w-full max-w-[1600px] overflow-hidden rounded-3xl border border-[#1c2942] bg-[#0b1220]/90 shadow-2xl backdrop-blur-xl lg:grid-cols-[minmax(0,460px)_minmax(0,1fr)] xl:grid-cols-[minmax(0,500px)_minmax(0,1fr)]">
-        {/* Coluna esquerda: formulário de login */}
-        <div className="flex flex-col justify-center px-7 py-12 sm:px-10 lg:px-12">
-          <div className="mb-10 flex items-center gap-3">
-            <ToothLogo boxClassName="h-11 w-11 rounded-2xl" />
+      {/* Header / Navbar */}
+      <header className="relative z-10 sticky top-0 backdrop-blur-md bg-white/80 border-b border-pink-100 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-3 group">
+            <div className="relative w-12 h-12 rounded-2xl overflow-hidden shadow-md group-hover:scale-105 transition-transform duration-300 border-2 border-pink-400">
+              <Image 
+                src="/logo.jpg" 
+                alt="Eliz Decora Festas Logo" 
+                fill 
+                className="object-cover"
+                priority
+              />
+            </div>
             <div>
-              <p className="text-lg font-bold text-white">
-                <span className="text-gradient">Odonto</span>web
-              </p>
-              <p className="text-[11px] text-slate-500">Plataforma odontológica profissional</p>
+              <span className="font-extrabold text-xl tracking-tight text-slate-900 block leading-none">
+                Eliz Decora <span className="text-pink-600">Festas</span>
+              </span>
+              <span className="text-xs text-sky-600 font-medium tracking-wide">
+                Decorações & Eventos Premium
+              </span>
             </div>
+          </Link>
+
+          <nav className="hidden md:flex items-center gap-8 font-bold text-slate-900 text-sm">
+            <a href="#catálogo" className="hover:text-pink-600 transition-colors">Catálogo Digital</a>
+            <a href="#diferenciais" className="hover:text-pink-600 transition-colors">Diferenciais</a>
+            <a href="#depoimentos" className="hover:text-pink-600 transition-colors">Depoimentos</a>
+            <Link href="/contato" className="hover:text-pink-600 transition-colors">Contato & Serviços</Link>
+          </nav>
+
+          <div className="flex items-center gap-3">
+            <Link 
+              href="/login"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-pink-500 via-rose-500 to-sky-500 text-white font-semibold shadow-lg shadow-pink-500/25 hover:shadow-pink-500/40 hover:scale-[1.02] active:scale-95 transition-all text-sm"
+            >
+              <Lock className="w-4 h-4" />
+              Entrar no Sistema
+            </Link>
           </div>
+        </div>
+      </header>
 
-          <h1 className="text-3xl font-bold text-white">Bem-vindo de volta</h1>
-          <p className="mt-2 text-sm text-slate-500">Acesse sua conta para continuar.</p>
-
-          <form onSubmit={submit} className="mt-9 space-y-5">
-            <Field label="E-mail" required>
-              <div className="relative">
-                <Mail className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-600" />
-                <Input
-                  type="email"
-                  required
-                  autoComplete="email"
-                  placeholder="voce@clinica.com.br"
-                  className="pl-10"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
+      {/* Hero Section */}
+      <section className="relative z-10 pt-12 pb-20 md:pt-20 md:pb-28">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+            
+            {/* Hero Left Content */}
+            <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-pink-100/80 border border-pink-200 text-pink-700 text-xs font-bold tracking-wide shadow-sm animate-bounce">
+                <Sparkles className="w-4 h-4 text-pink-500" />
+                Decoração de Eventos Inesquecíveis
               </div>
-            </Field>
 
-            <Field label="Senha" required>
-              <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-600" />
-                <Input
-                  type={showPassword ? "text" : "password"}
-                  required
-                  autoComplete="current-password"
-                  placeholder="••••••••"
-                  className="pl-10 pr-11"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 transition hover:text-sky-300"
-                  aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-slate-900 tracking-tight leading-[1.1]">
+                Transformando momentos especiais em{" "}
+                <span className="ez-gradient-text">experiências inesquecíveis.</span>
+              </h1>
+
+              <p className="text-lg text-slate-600 max-w-2xl mx-auto lg:mx-0 font-normal leading-relaxed">
+                Sistema comercial completo de alta performance para ornamentação, balões desconstruídos, flores nobres, painéis 3D, projetos visuais e gestão impecável de festas.
+              </p>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-4">
+                <Link
+                  href="/login"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 rounded-2xl bg-pink-600 hover:bg-pink-700 text-white font-bold text-base shadow-xl shadow-pink-500/30 hover:scale-[1.02] active:scale-98 transition-all"
                 >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-            </Field>
+                  <PartyPopper className="w-5 h-5" />
+                  Entrar no Sistema
+                </Link>
 
-            {error && (
-              <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
-                {error}
+                <Link
+                  href="/contato"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-3 px-8 py-4 rounded-2xl bg-white hover:bg-slate-100 text-slate-800 font-bold text-base border-2 border-slate-200 shadow-md hover:border-pink-300 transition-all"
+                >
+                  Conheça nossos serviços
+                  <ArrowRight className="w-5 h-5 text-pink-600" />
+                </Link>
               </div>
-            )}
 
-            <div className="flex items-center justify-between">
-              <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-400">
-                <input
-                  type="checkbox"
-                  checked={remember}
-                  onChange={(e) => setRemember(e.target.checked)}
-                  className="h-4 w-4 rounded border-[#23345a] bg-[#0b1120] accent-sky-500"
-                />
-                Lembrar acesso
-              </label>
-              <Link href="/esqueci-senha" className="text-sm font-medium text-sky-400 transition hover:text-sky-300">
-                Esqueceu a senha?
-              </Link>
+              {/* Badges / Stats */}
+              <div className="pt-8 border-t border-slate-200 grid grid-cols-3 gap-4 text-center lg:text-left">
+                <div>
+                  <div className="text-2xl font-black text-slate-900">+500</div>
+                  <div className="text-xs text-slate-500 font-medium">Festas Realizadas</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-black text-slate-900">100%</div>
+                  <div className="text-xs text-slate-500 font-medium">Clientes Satisfeitos</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-black text-slate-900">3D</div>
+                  <div className="text-xs text-slate-500 font-medium">Projetos Visuais</div>
+                </div>
+              </div>
             </div>
 
-            <Button type="submit" className="w-full" size="lg" loading={loading}>
-              {!loading && <Lock className="h-4 w-4" />}
-              Entrar
-            </Button>
-          </form>
+            {/* Hero Right Visual Card 3D Showcase */}
+            <div className="lg:col-span-5 relative">
+              <div className="relative mx-auto max-w-md lg:max-w-none">
+                
+                {/* 3D Floating Decorative Balloon */}
+                <div className="absolute -top-10 -right-6 z-20 animate-float-balloon">
+                  <div className="w-20 h-24 bg-gradient-to-b from-pink-400 to-pink-600 rounded-[50%_50%_50%_50%/60%_60%_40%_40%] shadow-xl flex items-center justify-center text-white relative">
+                    <Heart className="w-8 h-8 fill-white/30" />
+                    <div className="absolute -bottom-2 w-1 h-8 bg-pink-400/60 left-1/2 -translate-x-1/2" />
+                  </div>
+                </div>
 
-          <div className="mt-8 space-y-4">
-            <div className="flex items-center gap-3">
-              <span className="h-px flex-1 bg-[#1c2942]" />
-              <span className="text-[11px] font-medium uppercase tracking-wider text-slate-600">Novo por aqui?</span>
-              <span className="h-px flex-1 bg-[#1c2942]" />
+                {/* Main Showcase Image Card 3D */}
+                <div className="relative rounded-3xl overflow-hidden shadow-2xl border-4 border-white bg-white p-3 transform lg:rotate-2 hover:rotate-0 transition-transform duration-500 card-3d">
+                  <div className="relative h-96 sm:h-[450px] rounded-2xl overflow-hidden">
+                    <Image
+                      src="/eliz_decora_logo.jpg"
+                      alt="Eliz Decora Festas Identidade Visual"
+                      fill
+                      className="object-contain bg-slate-50 p-4"
+                      priority
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent flex flex-col justify-end p-6 text-white">
+                      <div className="inline-flex items-center gap-1 text-xs font-semibold bg-pink-500/90 backdrop-blur-sm px-3 py-1 rounded-full w-fit mb-2">
+                        <Star className="w-3.5 h-3.5 fill-amber-300 text-amber-300" />
+                        Decoração Oficial Premium
+                      </div>
+                      <h3 className="text-xl font-bold">Painéis, Arcos & Ornamentação</h3>
+                      <p className="text-xs text-slate-200">Catálogo digital interativo com simulação visual para o cliente.</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Secondary Floating Card */}
+                <div className="absolute -bottom-6 -left-6 z-20 bg-white p-4 rounded-2xl shadow-xl border border-pink-100 flex items-center gap-3 animate-pulse">
+                  <div className="w-12 h-12 rounded-xl bg-pink-100 text-pink-600 flex items-center justify-center font-bold">
+                    <Sparkles className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-slate-900">Projeto de Decoração</div>
+                    <div className="text-[11px] text-slate-500">Orçamentos gerados em PDF</div>
+                  </div>
+                </div>
+
+              </div>
             </div>
-            <Button type="button" variant="secondary" className="w-full" size="lg" onClick={() => setTrialOpen(true)}>
-              <Sparkles className="h-4 w-4" />
-              Experimente grátis por 7 dias
-            </Button>
-            <p className="text-center text-xs text-slate-600">
-              Não tem conta?{" "}
-              <Link href="/contato" className="text-sky-400 hover:text-sky-300">
-                Fale com a nossa equipe comercial
-              </Link>
+
+          </div>
+        </div>
+      </section>
+
+      {/* Catalog & Services Showcase */}
+      <section id="catálogo" className="py-16 bg-white relative z-10 border-t border-pink-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-3xl mx-auto mb-16">
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
+              Especialidades em <span className="text-pink-600">Decoração & Eventos</span>
+            </h2>
+            <p className="text-slate-600 mt-3 text-base">
+              Oferecemos um acervo completo de produtos e serviços para transformar a sua celebração em um espetáculo inesquecível.
             </p>
           </div>
-        </div>
 
-        {/* Coluna direita: radiografia panorâmica */}
-        <div className="relative hidden overflow-hidden border-l border-[#16213a] bg-gradient-to-br from-[#0a1424] to-[#060b14] lg:block">
-          <div className="bg-grid pointer-events-none absolute inset-0 opacity-40" />
-          <PanoramicImage />
-        </div>
-      </div>
-
-      <TrialModal
-        open={trialOpen}
-        onClose={() => {
-          setTrialOpen(false)
-          setTrialDone(null)
-        }}
-        onDone={(result) => setTrialDone(result)}
-        done={trialDone}
-      />
-    </div>
-  )
-}
-
-/* ---------- Modal de teste gratuito (7 dias) ---------- */
-
-function TrialModal({
-  open,
-  onClose,
-  onDone,
-  done,
-}: {
-  open: boolean
-  onClose: () => void
-  onDone: (result: { message: string; credentials?: { email: string; password: string } }) => void
-  done: { message: string; credentials?: { email: string; password: string } } | null
-}) {
-  const { toast } = useToast()
-  const [name, setName] = useState("")
-  const [trialEmail, setTrialEmail] = useState("")
-  const [whatsapp, setWhatsapp] = useState("")
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState("")
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
-    setLoading(true)
-    try {
-      const res = await fetch("/api/auth/trial", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email: trialEmail, whatsapp }),
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        setError(data.error || "Erro ao solicitar o teste.")
-        return
-      }
-      toast(data.message, data.whatsappSent ? "success" : "info")
-      onDone({ message: data.message, credentials: data.credentials })
-    } catch {
-      setError("Erro de conexão. Tente novamente.")
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <Modal open={open} onClose={onClose} title="Teste grátis por 7 dias" subtitle="Receba seu acesso de usuário e senha no WhatsApp." size="sm">
-      {done ? (
-        <div className="space-y-4 py-2">
-          <div className="flex items-start gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3">
-            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-400" />
-            <p className="text-sm text-emerald-200">{done.message}</p>
-          </div>
-          {done.credentials && (
-            <div className="space-y-2 rounded-xl border border-[#23345a] bg-[#0a1120] px-4 py-3.5">
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Seus dados de acesso</p>
-              <div className="space-y-1.5 text-sm">
-                <p className="text-slate-300">
-                  <span className="text-slate-500">E-mail:</span> <span className="font-mono text-sky-300">{done.credentials.email}</span>
-                </p>
-                <p className="text-slate-300">
-                  <span className="text-slate-500">Senha:</span> <span className="font-mono text-sky-300">{done.credentials.password}</span>
-                </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            {[
+              {
+                title: "Balões Orgânicos",
+                desc: "Arcos desconstruídos, esculturas gigantes e arranjos com cores vibrantes.",
+                icon: PartyPopper,
+                color: "bg-pink-500",
+                img: "https://images.unsplash.com/photo-1530103862676-de8c9debad1d?w=500&auto=format&fit=crop&q=80"
+              },
+              {
+                title: "Flores & Arranjos",
+                desc: "Arranjos naturais e desidratados para mesas principais e cenários.",
+                icon: Heart,
+                color: "bg-rose-500",
+                img: "https://images.unsplash.com/photo-1526047932273-341f2a7631f9?w=500&auto=format&fit=crop&q=80"
+              },
+              {
+                title: "Painéis 3D & Cenários",
+                desc: "Painéis sublimados, arcos romanos, cilindros e biombos temáticos.",
+                icon: Layers,
+                color: "bg-sky-500",
+                img: "https://images.unsplash.com/photo-1519741497674-611481863552?w=500&auto=format&fit=crop&q=80"
+              },
+              {
+                title: "Iluminação & Neon",
+                desc: "Letreiros em neon flex, refletores LED direcionais e iluminação cênica.",
+                icon: Sparkles,
+                color: "bg-amber-500",
+                img: "https://images.unsplash.com/photo-1563245372-f21724e3856d?w=500&auto=format&fit=crop&q=80"
+              }
+            ].map((item, idx) => (
+              <div key={idx} className="bg-slate-50 rounded-2xl overflow-hidden border border-slate-200 hover:shadow-xl transition-all duration-300 group hover:-translate-y-2">
+                <div className="relative h-48 overflow-hidden">
+                  <Image 
+                    src={item.img} 
+                    alt={item.title} 
+                    fill 
+                    className="object-cover group-hover:scale-110 transition-transform duration-500" 
+                  />
+                  <div className="absolute inset-0 bg-slate-900/30 group-hover:bg-slate-900/10 transition-colors" />
+                  <span className={`absolute top-4 right-4 p-2.5 rounded-xl ${item.color} text-white shadow-lg`}>
+                    <item.icon className="w-5 h-5" />
+                  </span>
+                </div>
+                <div className="p-6">
+                  <h3 className="font-bold text-lg text-slate-900">{item.title}</h3>
+                  <p className="text-slate-600 text-xs mt-2 leading-relaxed">{item.desc}</p>
+                </div>
               </div>
-            </div>
-          )}
-          <Button className="w-full" onClick={onClose}>
-            Entendi
-          </Button>
-        </div>
-      ) : (
-        <form onSubmit={submit} className="space-y-4 py-1">
-          <Field label="Seu nome" required>
-            <div className="relative">
-              <User className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-600" />
-              <Input
-                required
-                minLength={2}
-                placeholder="Dr(a). Nome do responsável"
-                className="pl-10"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </div>
-          </Field>
-          <Field label="E-mail" required>
-            <div className="relative">
-              <Mail className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-600" />
-              <Input
-                type="email"
-                required
-                placeholder="voce@clinica.com.br"
-                className="pl-10"
-                value={trialEmail}
-                onChange={(e) => setTrialEmail(e.target.value)}
-              />
-            </div>
-          </Field>
-          <Field label="WhatsApp" required hint="Você receberá o usuário e a senha por aqui.">
-            <div className="relative">
-              <Phone className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-600" />
-              <Input
-                required
-                inputMode="tel"
-                placeholder="(69) 9 9999-9999"
-                className="pl-10"
-                value={whatsapp}
-                onChange={(e) => setWhatsapp(e.target.value)}
-              />
-            </div>
-          </Field>
-          {error && (
-            <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
-              {error}
-            </div>
-          )}
-          <Button type="submit" className="w-full" loading={loading}>
-            {!loading && <MessageCircle className="h-4 w-4" />}
-            Quero testar por 7 dias
-          </Button>
-        </form>
-      )}
-    </Modal>
-  )
-}
-
-/* ---------- Radiografia panorâmica com lupa automática de varredura ---------- */
-
-const LUPA_WIDTH_FRAC = 0.20
-const LUPA_ZOOM = 2.6
-
-function PanoramicImage() {
-  const stageRef = useRef<HTMLDivElement>(null)
-  const lensRef = useRef<HTMLDivElement>(null)
-  const innerRef = useRef<HTMLDivElement>(null)
-  const sizeRef = useRef({ w: 0, h: 0 })
-  const posRef = useRef({ x: 0, y: 0 })
-  const mousePosRef = useRef<{ x: number; y: number } | null>(null)
-  const isHoveredRef = useRef(false)
-  const rafRef = useRef(0)
-
-  const placeAt = useCallback((x: number, y: number) => {
-    const lens = lensRef.current
-    const inner = innerRef.current
-    const { w, h } = sizeRef.current
-    if (!lens || !inner || !w || !h) return
-
-    const lensSize = Math.min(w * LUPA_WIDTH_FRAC, h * 0.38)
-    const half = lensSize / 2
-    const cx = Math.min(Math.max(x, half), w - half)
-    const cy = Math.min(Math.max(y, half), h - half)
-    posRef.current = { x: cx, y: cy }
-
-    lens.style.width = `${lensSize}px`
-    lens.style.height = `${lensSize}px`
-    lens.style.left = `${cx - half}px`
-    lens.style.top = `${cy - half}px`
-    inner.style.width = `${w * LUPA_ZOOM}px`
-    inner.style.height = `${h * LUPA_ZOOM}px`
-    inner.style.transform = `translate(${half - cx * LUPA_ZOOM}px, ${half - cy * LUPA_ZOOM}px)`
-  }, [])
-
-  useEffect(() => {
-    const stage = stageRef.current
-    if (!stage) return
-
-    const updateSize = () => {
-      const rect = stage.getBoundingClientRect()
-      if (!rect.width) return
-      const changed = sizeRef.current.w !== rect.width || sizeRef.current.h !== rect.height
-      sizeRef.current = { w: rect.width, h: rect.height }
-      if (posRef.current.x === 0 && posRef.current.y === 0) {
-        posRef.current = { x: rect.width * 0.5, y: rect.height * 0.5 }
-      } else if (changed) {
-        placeAt(posRef.current.x, posRef.current.y)
-      }
-    }
-
-    updateSize()
-    const ro = new ResizeObserver(updateSize)
-    ro.observe(stage)
-
-    const step = (now: number) => {
-      const { w, h } = sizeRef.current
-      if (w > 0 && h > 0) {
-        let targetX = posRef.current.x
-        let targetY = posRef.current.y
-
-        if (isHoveredRef.current && mousePosRef.current) {
-          targetX = mousePosRef.current.x
-          targetY = mousePosRef.current.y
-        } else {
-          const lensSize = Math.min(w * LUPA_WIDTH_FRAC, h * 0.38)
-          const half = lensSize / 2
-          const marginX = half + 20
-          const marginY = half + 16
-
-          const minX = marginX
-          const maxX = w - marginX
-          const minY = marginY
-          const maxY = h - marginY
-
-          const centerX = (minX + maxX) / 2
-          const centerY = (minY + maxY) / 2
-          const ampX = (maxX - minX) / 2
-          const ampY = (maxY - minY) / 2.5
-
-          const t = now / 1000
-          targetX = centerX + ampX * Math.sin(t * 0.8)
-          targetY = centerY + ampY * Math.sin(t * 1.6) * 0.7
-        }
-
-        const currentX = posRef.current.x
-        const currentY = posRef.current.y
-        const lerpFactor = isHoveredRef.current ? 0.2 : 0.08
-        const nextX = currentX + (targetX - currentX) * lerpFactor
-        const nextY = currentY + (targetY - currentY) * lerpFactor
-
-        placeAt(nextX, nextY)
-      }
-      rafRef.current = requestAnimationFrame(step)
-    }
-
-    rafRef.current = requestAnimationFrame(step)
-
-    return () => {
-      cancelAnimationFrame(rafRef.current)
-      ro.disconnect()
-    }
-  }, [placeAt])
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    const rect = stageRef.current?.getBoundingClientRect()
-    if (!rect) return
-    isHoveredRef.current = true
-    mousePosRef.current = {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
-    }
-  }
-
-  const handleMouseLeave = () => {
-    isHoveredRef.current = false
-    mousePosRef.current = null
-  }
-
-  return (
-    <div className="relative flex h-full min-h-[560px] items-center justify-center px-1 py-2">
-      <div
-        ref={stageRef}
-        onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeave}
-        className="group relative w-full overflow-hidden rounded-2xl border border-[#23345a] bg-[#0a101c] shadow-2xl"
-        style={{ aspectRatio: "1.894", cursor: "zoom-in" }}
-      >
-        {/* radiografia */}
-        <img
-          src="/pan.png"
-          alt="Radiografia panorâmica"
-          className="absolute inset-0 h-full w-full select-none object-cover"
-          draggable={false}
-        />
-
-        {/* cor da marca transparente por cima da panorâmica */}
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-sky-400/25 via-cyan-400/20 to-indigo-400/30 mix-blend-overlay" />
-
-        {/* lupa com região ampliada */}
-        <div
-          ref={lensRef}
-          className="pointer-events-none absolute z-30 overflow-hidden rounded-full border-2 border-sky-300/70 bg-sky-400/5 shadow-[0_0_50px_rgba(56,189,248,0.5),inset_0_0_24px_rgba(2,6,23,0.6)] transition-shadow duration-300"
-        >
-          <div ref={innerRef} className="absolute left-0 top-0">
-            <img src="/pan.png" alt="" draggable={false} className="h-full w-full select-none object-cover opacity-95" />
-          </div>
-          {/* anel interno e reflexo do vidro */}
-          <div className="pointer-events-none absolute inset-[3px] rounded-full border border-white/25" />
-          <div className="pointer-events-none absolute -left-6 -top-10 h-24 w-16 rotate-45 rounded-full bg-gradient-to-b from-white/25 to-transparent blur-sm" />
-          {/* mira milimétrica */}
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <div className="h-6 w-px bg-white/30" />
-            <div className="absolute h-px w-6 bg-white/30" />
+            ))}
           </div>
         </div>
+      </section>
 
-        {/* dica e moldura */}
-        <div className="pointer-events-none absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-full border border-white/10 bg-[#05070d]/70 px-3.5 py-1.5 text-[11px] font-medium text-slate-300 shadow-lg backdrop-blur-md">
-          <span className="inline-block h-2 w-2 rounded-full bg-sky-400 animate-pulse mr-2" />
-          Lupa automática • Passe o mouse para controlar
+      {/* Differentials */}
+      <section id="diferenciais" className="py-16 bg-slate-100/70 relative z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="bg-white p-8 rounded-3xl border border-pink-100 shadow-md">
+              <div className="w-12 h-12 rounded-2xl bg-pink-100 text-pink-600 flex items-center justify-center mb-6">
+                <CheckCircle2 className="w-6 h-6" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900">Gestão 100% Integrada</h3>
+              <p className="text-sm text-slate-600 mt-2 leading-relaxed">
+                Do cadastro do cliente à montagem do evento, controle estoque, orçamentos, vendas e financeiro em uma única plataforma.
+              </p>
+            </div>
+
+            <div className="bg-white p-8 rounded-3xl border border-sky-100 shadow-md">
+              <div className="w-12 h-12 rounded-2xl bg-sky-100 text-sky-600 flex items-center justify-center mb-6">
+                <Package className="w-6 h-6" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900">Reserva Automática de Estoque</h3>
+              <p className="text-sm text-slate-600 mt-2 leading-relaxed">
+                Ao aprovar um orçamento ou fechar um contrato, os itens da decoração são automaticamente reservados na agenda.
+              </p>
+            </div>
+
+            <div className="bg-white p-8 rounded-3xl border border-amber-100 shadow-md">
+              <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center mb-6">
+                <PhoneCall className="w-6 h-6" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900">Compartilhamento no WhatsApp</h3>
+              <p className="text-sm text-slate-600 mt-2 leading-relaxed">
+                Envie o projeto visual da decoração e os orçamentos em PDF com um único clique direto para o WhatsApp do cliente.
+              </p>
+            </div>
+          </div>
         </div>
-        <div className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/[0.06]" />
-      </div>
+      </section>
+
+      {/* CTA Footer Banner */}
+      <section className="py-16 bg-gradient-to-r from-pink-600 via-rose-600 to-sky-600 text-white relative z-10 overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
+          <h2 className="text-3xl sm:text-4xl font-black tracking-tight">
+            Pronto para transformar sua empresa de eventos?
+          </h2>
+          <p className="text-pink-100 mt-3 text-base max-w-2xl mx-auto">
+            Acesse o sistema web comercial da Eliz Decora Festas e gerencie orçamentos, estoque e decorações com praticidade.
+          </p>
+          <div className="mt-8 flex justify-center gap-4">
+            <Link
+              href="/login"
+              className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl bg-white text-pink-600 font-bold text-base shadow-2xl hover:bg-slate-100 hover:scale-105 transition-all"
+            >
+              <Lock className="w-5 h-5" />
+              Acessar o Sistema Agora
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="bg-slate-900 text-slate-400 py-12 border-t border-slate-800 relative z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-6 text-sm">
+          <div className="flex items-center gap-3">
+            <div className="relative w-8 h-8 rounded-lg overflow-hidden border border-pink-500">
+              <Image src="/logo.jpg" alt="Eliz Decora Festas Logo" fill className="object-cover" />
+            </div>
+            <span className="font-bold text-white">Eliz Decora Festas</span>
+          </div>
+          <p>© {new Date().getFullYear()} Eliz Decora Festas. Todos os direitos reservados.</p>
+          <div className="flex items-center gap-6">
+            <Link href="/contato" className="hover:text-pink-400 transition-colors">Contato</Link>
+            <Link href="/login" className="hover:text-pink-400 transition-colors">Área Restrita</Link>
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }
-

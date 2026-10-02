@@ -75,6 +75,12 @@ const MENU: { group: string; items: NavItem[] }[] = [
         module: "odontogram",
       },
       {
+        label: "Odontometria",
+        href: "/app/odontometria",
+        icon: <Activity className="h-[18px] w-[18px]" />,
+        module: "procedures",
+      },
+      {
         label: "Nova produção",
         href: "/app/producao",
         icon: <PlusCircle className="h-[18px] w-[18px]" />,
@@ -144,7 +150,6 @@ export function AppShell({
     await fetch("/api/admin/impersonate", { method: "DELETE" })
     toast("Visualização encerrada.", "info")
     router.push("/admin/clientes")
-    router.refresh()
   }
 
   const logout = async () => {
@@ -152,7 +157,6 @@ export function AppShell({
     if (res.ok) {
       toast("Sessão encerrada com segurança.", "info")
       router.push("/login")
-      router.refresh()
     }
   }
 

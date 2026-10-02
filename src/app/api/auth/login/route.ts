@@ -1,93 +1,93 @@
-import { NextRequest, NextResponse } from "next/server"
-import { verifyPassword, createSessionToken, setSessionCookie, setImpersonationCookie, requestIsSecure } from "@/lib/auth"
+import { NextResponse } from "next/server"
+import { cookies } from "next/headers"
 import { prisma } from "@/lib/prisma"
-import { logAction } from "@/lib/audit"
-import { z } from "zod"
+import { comparePassword, createJwtToken, logAudit } from "@/lib/auth"
 
-const schema = z.object({
-  email: z.string().email().max(190),
-  password: z.string().min(1).max(200),
-  remember: z.boolean().optional(),
-})
-
-const SEVEN_DAYS = 60 * 60 * 24 * 7
-const TWELVE_HOURS = 60 * 60 * 12
-
-export async function POST(req: NextRequest) {
+export async function POST(request: Request) {
   try {
-    const body = await req.json().catch(() => null)
-    const parsed = schema.safeParse(body)
-    if (!parsed.success) {
-      return NextResponse.json({ error: "Dados inválidos." }, { status: 400 })
+    const body = await request.json()
+    const { email, password, rememberMe } = body
+
+    if (!email || !password) {
+      return NextResponse.json({ error: "E-mail e senha são obrigatórios." }, { status: 400 })
     }
 
-    const { email, password, remember } = parsed.data
-    const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } })
-    if (!user || !(await verifyPassword(password, user.passwordHash))) {
-      return NextResponse.json({ error: "E-mail ou senha incorretos." }, { status: 401 })
-    }
-    if (!user.active) {
-      return NextResponse.json({ error: "Conta desativada. Contate o administrador." }, { status: 403 })
-    }
-
-    if (user.role !== "ADMIN_MASTER" && user.clinicId) {
-      const clinic = await prisma.clinic.findUnique({
-        where: { id: user.clinicId },
-        select: { tenant: { select: { status: true } } },
-      })
-      if (clinic && !["ACTIVE", "TRIAL"].includes(clinic.tenant.status)) {
-        return NextResponse.json(
-          { error: "Assinatura suspensa ou expirada. Contate o suporte." },
-          { status: 403 },
-        )
-      }
-    }
-
-    const token = await createSessionToken(user.id)
-    const secure = requestIsSecure(req)
-    await setSessionCookie(token, {
-      secure,
-      maxAge: remember === false ? TWELVE_HOURS : SEVEN_DAYS,
+    const user = await prisma.user.findUnique({
+      where: { email: email.toLowerCase().trim() },
     })
 
-    if (user.role === "ADMIN_MASTER") {
-      const clinicCount = await prisma.clinic.count()
-      if (clinicCount === 1) {
-        const clinic = await prisma.clinic.findFirst({
-          select: { id: true, tenant: { select: { status: true } } },
-        })
-        if (clinic && ["ACTIVE", "TRIAL"].includes(clinic.tenant.status)) {
-          await setImpersonationCookie(clinic.id, { secure })
-        }
+    if (!user || !user.active) {
+      return NextResponse.json({ error: "Credenciais inválidas ou usuário inativo." }, { status: 401 })
+    }
+
+    const isValid = await comparePassword(password, user.passwordHash)
+    if (!isValid) {
+      return NextResponse.json({ error: "Credenciais inválidas." }, { status: 401 })
+    }
+
+    let parsedPermissions: string[] = []
+    if (user.permissions) {
+      try {
+        parsedPermissions = JSON.parse(user.permissions)
+      } catch {
+        parsedPermissions = []
       }
     }
 
+    const sessionPayload = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role as any,
+      avatarUrl: user.avatarUrl,
+      title: user.title,
+      permissions: parsedPermissions,
+    }
+
+    const token = await createJwtToken(sessionPayload)
+
+    // Save session in DB
+    const userAgent = request.headers.get("user-agent") || "Web"
+    const ip = request.headers.get("x-forwarded-for") || "127.0.0.1"
+
+    await prisma.session.create({
+      data: {
+        userId: user.id,
+        token,
+        ip,
+        userAgent,
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      },
+    })
+
+    // Update last login info
     await prisma.user.update({
       where: { id: user.id },
-      data: { lastLoginAt: new Date() },
+      data: {
+        lastLoginAt: new Date(),
+        lastDevice: userAgent,
+      },
     })
 
-    await logAction({
-      userId: user.id,
-      action: "login",
-      entityType: "User",
-      entityId: user.id,
-      ip: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || null,
-      userAgent: req.headers.get("user-agent"),
+    // Log Audit
+    await logAudit(user.id, user.name, "LOGIN_SUCCESS", "Usuário realizou login com sucesso", userAgent, ip)
+
+    // Set cookie
+    const cookieStore = await cookies()
+    cookieStore.set("eliz_decora_session", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: rememberMe ? 30 * 24 * 60 * 60 : 24 * 60 * 60, // 30 days or 1 day
+      path: "/",
     })
 
     return NextResponse.json({
-      ok: true,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-      },
-      isAdminMaster: user.role === "ADMIN_MASTER",
+      success: true,
+      user: sessionPayload,
     })
-  } catch (e) {
-    console.error("Login error:", e)
-    return NextResponse.json({ error: "Erro interno ao efetuar login." }, { status: 500 })
+  } catch (error: any) {
+    console.error("Login error:", error)
+    return NextResponse.json({ error: "Erro interno no servidor ao realizar login." }, { status: 500 })
   }
 }

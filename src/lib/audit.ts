@@ -3,14 +3,13 @@ import { prisma } from "@/lib/prisma"
 
 type AuditInput = {
   userId?: string | null
-  tenantId?: string | null
-  clinicId?: string | null
+  userName?: string
   action: string
+  details?: string
+  device?: string | null
+  ip?: string | null
   entityType?: string
   entityId?: string
-  details?: Record<string, unknown>
-  ip?: string | null
-  userAgent?: string | null
 }
 
 export async function logAction(input: AuditInput) {
@@ -18,14 +17,11 @@ export async function logAction(input: AuditInput) {
     await prisma.auditLog.create({
       data: {
         userId: input.userId,
-        tenantId: input.tenantId,
-        clinicId: input.clinicId,
+        userName: input.userName || "Sistema",
         action: input.action,
-        entityType: input.entityType,
-        entityId: input.entityId,
-        details: input.details as never,
-        ip: input.ip,
-        userAgent: input.userAgent,
+        details: input.details || (input.entityType ? `${input.entityType}:${input.entityId}` : undefined),
+        device: input.device || "Navegador Web",
+        ip: input.ip || "127.0.0.1",
       },
     })
   } catch (e) {
@@ -34,5 +30,5 @@ export async function logAction(input: AuditInput) {
 }
 
 export async function getClientIp(headers: Headers) {
-  return headers.get("x-forwarded-for")?.split(",")[0]?.trim() || null
+  return headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "127.0.0.1"
 }

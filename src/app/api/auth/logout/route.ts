@@ -1,27 +1,19 @@
-import { NextRequest, NextResponse } from "next/server"
-import { destroySessionCookie, getSessionToken, getSessionContext } from "@/lib/auth"
-import { logAction } from "@/lib/audit"
-import { prisma } from "@/lib/prisma"
+import { NextResponse } from "next/server"
+import { cookies } from "next/headers"
+import { getSessionUser, logAudit } from "@/lib/auth"
 
-export async function POST(req: NextRequest) {
-  const ctx = await getSessionContext()
-  if (ctx) {
-    await logAction({
-      userId: ctx.user.id,
-      tenantId: ctx.tenantId,
-      clinicId: ctx.clinicId,
-      action: "logout",
-      entityType: "User",
-      entityId: ctx.user.id,
-      ip: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || null,
-    })
-    try {
-      const token = await getSessionToken()
-      if (token) await prisma.session.deleteMany({ where: { token } })
-    } catch {
-      // sessão local sem registro em tabela
+export async function POST() {
+  try {
+    const user = await getSessionUser()
+    if (user) {
+      await logAudit(user.id, user.name, "LOGOUT", "Usuário encerrou a sessão com segurança")
     }
+
+    const cookieStore = await cookies()
+    cookieStore.delete("eliz_decora_session")
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    return NextResponse.json({ error: "Erro ao efetuar logout" }, { status: 500 })
   }
-  await destroySessionCookie()
-  return NextResponse.json({ ok: true })
 }
